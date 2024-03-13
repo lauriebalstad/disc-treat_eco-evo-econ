@@ -1,0 +1,43 @@
+# continuous dynamics
+systemTREAT <- function (Time, y, Pars) {
+  with(as.list(c(State, Pars)), {
+    
+    # domestic parasites
+    dy1 = ifelse(y[1] <= 0, 0, l_r/c_r*F_f*B_f*(p_ff*y[1] + p_fl*(M_out*y[5]*y[6])/((F_w+M_out*y[5]/M_in)*(u_r + sig))) - (u_r+h)*y[1] - m*y[1]*(y[1] + y[2])/F_f)
+    dy2 = ifelse(y[2] <= 0, 0, l_s/c_s*F_f*B_f*(p_ff*y[2] + p_fl*(M_out*y[5]*y[7])/((F_w+M_out*y[5]/M_in)*(u_s + sig))) - (u_s+h)*y[2] - m*y[2]*(y[1] + y[2])/F_f)
+    
+    # domesitc hosts in equilibirum
+    
+    # link parasites
+    dy3 = l_r/c_r*y[5]*B_l*(p_lf*y[1]) - (u_r+Y+M_out+X)*y[3] - X*y[3]*(y[3]+y[4])/y[5]
+    dy4 = l_s/c_s*y[5]*B_l*(p_lf*y[2]) - (u_s+Y+M_out+X)*y[4] - X*y[4]*(y[3]+y[4])/y[5]
+    # dy3 = l_r/c_r*y[5]*B_l*(p_ll*y[3] + p_lf*y[1]) - (u_r+Y+M_out+X)*y[3] - X*y[3]*(y[3]+y[4])/y[5]
+    # dy4 = l_s/c_s*y[5]*B_l*(p_ll*y[4] + p_lf*y[2]) - (u_s+Y+M_out+X)*y[4] - X*y[4]*(y[3]+y[4])/y[5]
+    
+    # link hosts
+    dy5 = r*y[5]/(v+y[5]) - X*(y[3] + y[4]) - Y*y[5] - M_out*y[5] # hosts leave by maturing
+    
+    # wild subsidy
+    dy6 = l_r/c_r*B_w*(F_w + (M_out*y[5]/M_in))*p_ww*y[6] + M_out*y[3] - (u_r+u_f)*y[6] - M_out*y[5]*y[6]/(F_w + (M_out*y[5]/M_in)) - mb*y[6]*(y[6]+y[7])/(F_w + (M_out*y[5]/M_in))
+    dy7 = l_s/c_s*B_w*(F_w + (M_out*y[5]/M_in))*p_ww*y[7] + M_out*y[4] - (u_s+u_f)*y[7] - M_out*y[5]*y[7]/(F_w + (M_out*y[5]/M_in)) - mb*y[7]*(y[6]+y[7])/(F_w + (M_out*y[5]/M_in))
+    
+    # wild hosts, spawning hosts & spawning parasites in equilbiribum
+    
+    derivs = c(dy1, dy2, dy3, dy4, dy5, dy6, dy7)
+    
+    derivs[!is.finite(derivs)] = 0
+    
+    return(list(derivs))
+  })
+}
+
+# treat at discrete time points
+rootfunc <- function(Time, y, Pars) {return (y[1] + y[2] - th.0*F_f.0)}
+
+# how effective is treatment?
+eventfunc <- function(Time, y, Pars) {
+  y[1] <- (1-t_r.0)*y[1]
+  y[2] <- (1-t_s.0)*y[2]
+  return(y)
+}
+
