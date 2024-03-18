@@ -1,0 +1,26 @@
+{
+    "id": "0ECE9B85",
+    "path": "~/GitHub/disc-treat_eco-evo-econ/plots/figures.R",
+    "project_path": "plots/figures.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1710779598924.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "215,41",
+        "scrollLine": "207"
+    },
+    "folds": "8|32|115|0|\n12|1|65|1|\n68|1|70|0|\n72|1|97|0|\n121|1|172|1|\n284|1|307|0|\n",
+    "lastKnownWriteTime": 1710784731,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1710784731796,
+    "read_only": false,
+    "read_only_alternatives": []
+}
