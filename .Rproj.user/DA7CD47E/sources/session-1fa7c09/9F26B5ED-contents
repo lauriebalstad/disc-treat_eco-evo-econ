@@ -1,0 +1,307 @@
+---
+title: "discont lice"
+author: "Laurie Balstad"
+date: "2023-05-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(deSolve)
+library(dplyr)
+library(matlib)
+library(sparsevar) 
+library(randomForest)
+library(lhs)
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+library(viridis)
+
+```
+
+```{r system & roots}
+
+systemTREAT <- function (Time, y, Pars) {
+    with(as.list(c(State, Pars)), {
+       
+        # domestic parasites
+        dy1 = ifelse(y[1] <= 0, 0, l_r/c_r*F_f*B_f*(p_ff*y[1] + p_fl*(M_out*y[5]*y[6])/((F_w+M_out*y[5]/M_in)*(u_r + sig))) - (u_r+h)*y[1] - m*y[1]*(y[1] + y[2])/F_f)
+        dy2 = ifelse(y[2] <= 0, 0, l_s/c_s*F_f*B_f*(p_ff*y[2] + p_fl*(M_out*y[5]*y[7])/((F_w+M_out*y[5]/M_in)*(u_s + sig))) - (u_s+h)*y[2] - m*y[2]*(y[1] + y[2])/F_f)
+        
+        # domesitc hosts in equilibirum
+      
+        # link parasites
+        # dy3 = l_r/c_r*y[5]*B_l*(p_ll*y[3] + p_lf*y[1]) - (u_r+Y+M_out+X)*y[3] - X*y[3]*(y[3]+y[4])/y[5]
+        # dy4 = l_s/c_s*y[5]*B_l*(p_ll*y[4] + p_lf*y[2]) - (u_s+Y+M_out+X)*y[4] - X*y[4]*(y[3]+y[4])/y[5]
+        dy3 = l_r/c_r*y[5]*B_l*(p_lf*y[1]) - (u_r+Y+M_out+X)*y[3] - X*y[3]*(y[3]+y[4])/y[5]
+        dy4 = l_s/c_s*y[5]*B_l*(p_lf*y[2]) - (u_s+Y+M_out+X)*y[4] - X*y[4]*(y[3]+y[4])/y[5]
+        
+        # link hosts
+        dy5 = r*y[5]/(v+y[5]) - X*(y[3] + y[4]) - Y*y[5] - M_out*y[5] # hosts leave by maturing
+        
+        # wild subsidy
+        dy6 = l_r/c_r*B_w*(F_w + (M_out*y[5]/M_in))*p_ww*y[6] + M_out*y[3] - (u_r+u_f)*y[6] - M_out*y[5]*y[6]/(F_w + (M_out*y[5]/M_in)) - mb*y[6]*(y[6]+y[7])/(F_w + (M_out*y[5]/M_in))
+        dy7 = l_s/c_s*B_w*(F_w + (M_out*y[5]/M_in))*p_ww*y[7] + M_out*y[4] - (u_s+u_f)*y[7] - M_out*y[5]*y[7]/(F_w + (M_out*y[5]/M_in)) - mb*y[7]*(y[6]+y[7])/(F_w + (M_out*y[5]/M_in))
+        
+        # wild hosts, spawning hosts & spawning parasites in equilbiribum
+        
+        derivs = c(dy1, dy2, dy3, dy4, dy5, dy6, dy7)
+        
+        derivs[!is.finite(derivs)] = 0
+        
+        return(list(derivs))
+    })
+}
+
+eventfunc <- function(Time, y, Pars) {
+  y[1] <- (1-t_r.0)*y[1]
+  y[2] <- (1-t_s.0)*y[2]
+  return(y)
+}
+
+rootfunc <- function(Time, y, Pars) {return (y[1] + y[2] - th.0*F_f.0)} # th.0 is the threshold that treatment occurs (not the total lice population which triggers treatment)
+
+```
+
+```{r parameters}
+
+l_s.0 = 6.35; c_s.0 = 1/5 # note magnitude change from bateman --> bc B_f/p_ff and B_ff are different??
+# l_r.0 = 1; c_r.0 = 1
+l_r.0 = l_s.0*0.9; c_r.0 = c_s.0 # similar to Murray values: l_s.0*0.98
+u_s.0 = 1/60
+u_r.0 = u_s.0 # Bateman et al modifies resistant lice here
+m.0 = 0.01 # try diff values? 0.001 gives ~160 equilibrium
+mb.0 = 0.01 # 1?? 0.2??
+
+p_ff.0 = 1#0.95 # low connectivity case (p_ff.0 close to 1)
+p_ll.0 = 1# p_ff.0 # lice in farm stay on farm...
+p_fl.0 = 1# 1-p_ff.0 # ...or jump to wild (spillover)
+p_lf.0 = 1 # p_fl.0 # spillback rate
+p_ww.0 = 1 # all lice in wild stay in that environment
+B_f.0 = 0.22*5.9*10^-9/1.3 # 0.22*5.9*10^-10/1.3 # all the lice attach type vibe magnitude appoximation
+B_l.0 = B_f.0/2 # B_f.0*0.5 # slightly lower in the link population -- bateman vibe
+B_w.0 = B_f.0/10 # lowest in wild
+
+Tr.0 = 3 # just to start
+t_s.0 = 0.95 # 95% effective
+t_r.0 = t_s.0*0.1 # 15% effective
+b.0 = 1000
+th.0 = 0 # Murray/Bateman: continous treatment
+h.0 = 0.67/365
+
+F_f.0 = 6*10^6 # normalize farm fish population size --> might need to be closer to 2e6?? for about a single farm v. whole network
+F_w.0 = 10*F_f.0
+r.0 = 5.2*10^3
+v.0 = 1*10^2
+X.0 = 0.02 
+u_f.0 = 0 # bateman has no fish death
+M_out.0 = 1/(0.25*365)
+Y.0 = M_out.0
+M_in.0 = 1/(1.25*365)
+sig.0 = 1/(0.25*365)
+
+pT.0 = 10
+pQ.0 = 1
+
+```
+
+```{r simulation tester}
+
+n = 365*10
+Time = seq(0, n, length.out = n)
+# since running twice
+
+F_w.0 = 10*F_f.0
+Tr.0 = 2 
+th.0 = 10
+
+Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
+         u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
+         B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
+         Tr = Tr.0, t_r = t_r.0, t_s = t_s.0, b = b.0, th = th.0, h = h.0,
+         F_f = F_f.0, F_w = F_w.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
+         M_out = M_out.0, M_in = M_in.0)
+
+State = c(L_rF = 0, L_sF = 0.001, L_rL = 0, L_sL = 0, F_l = 1, L_rW = 0, L_sW = 0.2) 
+out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
+# plot(out)
+# then take output from out and use to start new simulation state
+State = out[dim(out)[1], 2:8]; State["L_rF"] = 0.01 # can just add resistant lice
+out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
+# plot(out) # what is happening when th.0 == 0?
+attributes(out)$troot # gives number of times treatment was applied based --> can use for treatment cost post resistant entering
+
+```
+
+```{r invade function}
+
+n = 365*10 # gets to equilibrium like value
+Time = seq(0, n, length.out = n)
+
+invade <- function() {
+  
+  # pair_val
+  # th.0 = pair_val[1]; t_s.0 = pair_val[2]
+  # th.0 = th_val #; 
+  # t_s.0 = ts_val
+  
+  # Time = seq(0, n, length.out = n)
+  Time = seq(0, n, length.out = 5*n)
+
+  Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
+         u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
+         B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
+         t_r = t_s.0*0.25, # just set to 25% of regular
+         t_s = t_s.0, th = th.0, h = h.0,
+         F_f = F_f.0, F_w = F_w.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
+         M_out = M_out.0, M_in = M_in.0)
+  
+  State = c(L_rF = 0, L_sF = F_f.0*0.01, L_rL = 0, L_sL = 0, F_l = 1, L_rW = 0, L_sW = F_w.0) # F_l = 10000 start with < 1/2 of lowest threshold
+  
+  # first set
+  out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
+  
+  link_pre <- mean(out[(dim(out)[1]-30):dim(out)[1], 6])
+  
+  # then take output from out and use to start new simulation state
+  State = out[dim(out)[1], 2:8]; State["L_sF"] = State["L_sF"] - 0.001; State["L_rF"] =  0.001 # can just add resistant lice --> make sure this is lower than the lowest threshold State["L_sF"] = State["L_sF"]/2; State["L_rF"] =  State["L_sF"] - 10
+  
+  out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
+  
+  link_post <- mean(out[(dim(out)[1]-30):dim(out)[1], 6]) # probs zero always b/c burden about same
+  
+  dat <- as.data.frame(out) # this is only second simulation set
+  # average over last time steps
+  dat_slim <- dat %>% filter(time > n-30) # should give across treatment window
+  dat_slim$farm_burden <- (dat_slim$L_rF + dat_slim$L_sF)/F_f.0
+  dat_slim$grow <- (dat_slim$farm_burden - lag(dat_slim$farm_burden)) >= -1e-10 # basically zero
+  treat_apply <- ifelse(dat_slim$grow == TRUE, 0, 1)
+    # sum(diff(dat_slim$grow[2:length(dat_slim$grow)]) == 1) + ifelse(dat_slim$grow[length(dat_slim$grow)] == FALSE, 1, 0)
+  dat_slim$resist <- (dat_slim$L_rF)/(dat_slim$L_rF + dat_slim$L_sF)
+  dat_slim$wild_burden <- (dat_slim$L_rW + dat_slim$L_sW)/F_w.0
+  dat_slim$link_burden <- (dat_slim$L_rL + dat_slim$L_sL)/dat_slim$F_l
+
+  return(list(
+    thresh = th.0, 
+    efficacy = t_s.0,
+    dat = dat_slim,
+    perc_resist = mean(dat_slim$resist),
+    farm_burden = mean(dat_slim$farm_burden),
+    link_burden = mean(dat_slim$link_burden),
+    wild_burden = mean(dat_slim$wild_burden),
+    link_pop = mean(dat_slim$F_l),
+    diff_link = link_post-link_pre,
+    treat_count = sum(treat_apply, na.rm = TRUE)))
+  
+}
+
+```
+
+```{r heatmaps}
+
+ts.vec = seq(from = 0.25, to = 0.95, length.out = 5)
+th.vec = seq(from = 0.2, to = 22, length.out = 15) # i think this should work??
+th.vec = th.vec[2:length(th.vec)]
+grid_val <- expand.grid(th_val = th.vec, ts_val = ts.vec)
+
+# not elegant but works??
+# need to do th.vec = 0.1 seperately
+for (i in 1:dim(grid_val)[1]) {
+  
+  if (i%%10 == 0) print(i)
+  th.0 = grid_val$th_val[i]
+  t_s.0 = grid_val$ts_val[i]
+  
+  p <- invade()
+  grid_val$resist[i] <- p$perc_resist
+  grid_val$link_pop[i] <- p$link_pop
+  grid_val$farm_burd[i] <- p$farm_burden
+  grid_val$treat[i] <- p$treat_count
+  grid_val$diff_link[i] <- p$diff_link
+  grid_val$lice_cost[i] <- sum(p$dat$farm_burden)
+
+}
+
+# do th_val = small here
+grid_val2 <- expand.grid(th_val = 0.1, ts_val = ts.vec)
+for (i in 1:length(ts.vec)) {
+  
+  t_s.0 = ts.vec[i]
+  th.0 = 0.1
+  
+  # Time = seq(0, n, length.out = n)
+  Time = seq(0, n, length.out = 5*n)
+  
+  Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
+         u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
+         B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
+         t_r = t_s.0*0.25, # just set to 10% of regular --> triple check
+         t_s = t_s.0, th = th.0, h = h.0,
+         F_f = F_f.0, F_w = F_w.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
+         M_out = M_out.0, M_in = M_in.0)
+  
+  State = c(L_rF = 0, L_sF = F_f.0*th.0*0.01, L_rL = 0, L_sL = 0, F_l = 1, L_rW = 0, L_sW = F_w.0) 
+  
+  # first set
+  out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
+  
+  link_pre <- mean(out[(dim(out)[1]-30):dim(out)[1], 6])
+
+  # then take output from out and use to start new simulation state
+  State = out[dim(out)[1], 2:8]; State["L_sF"] = State["L_sF"] - 0.001; State["L_rF"] =  0.001 # can just add resistant lice --> make sure this is lower than the lowest threshold State["L_sF"] = State["L_sF"]/2; State["L_rF"] =  State["L_sF"] - 10
+  
+  out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
+  
+  link_post <- mean(out[(dim(out)[1]-30):dim(out)[1], 6]) 
+  
+  dat <- as.data.frame(out) # this is only second simulation set
+  # average over last time steps
+  dat_slim <- dat %>% filter(time > n-10) # should give across treatment window
+  dat_slim$farm_burden <- (dat_slim$L_rF + dat_slim$L_sF)/F_f.0
+  dat_slim$grow <- (dat_slim$farm_burden - lag(dat_slim$farm_burden)) >= 0
+  treat_apply <- ifelse(dat_slim$grow == TRUE, 0, 1)
+  
+  grid_val2$resist[i] <- mean(dat_slim$L_rF/(dat_slim$farm_burden*F_f.0))
+  grid_val2$link_pop[i] <- mean(dat_slim$F_l)
+  grid_val2$farm_burd[i] <- mean(dat_slim$farm_burden)
+  grid_val2$treat[i] <- sum(treat_apply, na.rm = TRUE)
+  grid_val2$lice_cost[i] <- sum(dat_slim$farm_burden)
+  grid_val2$diff_link[i] <- link_post-link_pre
+
+}
+
+grid_val <- rbind(grid_val, grid_val2)
+
+pT = 10; pQ = 0.01 # --> pT makes a pretty good difference....
+grid_val$econ <- pT*grid_val$treat + pQ/(1+exp(-5*(floor(grid_val$farm_burd) - 8)))*floor(grid_val$farm_burd)  # farm_burd # lice_cost 
+# --> pretty big difference.... something to think through
+# --> maybe due to the varience??
+# --> farm burden linear v. threshold of ~8 ish
+
+# check these first for funky things
+ggplot(grid_val, aes(th_val, farm_burd, col = ts_val)) + 
+  geom_point(size = 2) + theme_bw()
+ggplot(grid_val, aes(th_val, treat, col = ts_val)) + 
+  geom_point(size = 2) + theme_bw() # look into this...
+
+# final graphs
+ggplot(grid_val, aes(th_val, resist, col = ts_val)) + 
+  geom_point(size = 2) + theme_bw()
+ggplot(grid_val, aes(th_val, log(link_pop), col = ts_val)) + 
+  geom_point(size = 2) + theme_bw() # looks funky....
+ggplot(grid_val, aes(th_val, econ, col = ts_val)) + 
+  geom_point(size = 2) + theme_bw() # very funky --> super dependent on sum v. average lice
+ggplot(grid_val, aes(log(link_pop), -econ, col = ts_val)) + 
+  geom_point(size = 2) + theme_bw() # something odd with the numerics: farm burden not quite calculating smoothly, e.g., equilibirum is so so?
+ggplot(grid_val, aes(log(link_pop), -resist, col = ts_val)) + 
+  geom_point(size = 2) + theme_bw()
+
+```

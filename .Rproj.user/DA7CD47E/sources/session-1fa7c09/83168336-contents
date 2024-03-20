@@ -1,0 +1,589 @@
+---
+title: "lice_project"
+author: "Laurie Balstad"
+date: "2022-12-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(deSolve)
+library(matlib)
+library(sparsevar) 
+library(randomForest)
+library(lhs)
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+
+```
+
+```{r with extra subsidy}
+
+l_s.0 = 1; c_s.0 = 1
+l_r.0 = 1; c_r.0 = 1
+u_s.0 = .1
+u_r.0 = 1.05*u_s.0
+p_ff.0 = 0.95 # low connectivity case (p_ff.0 close to 1) = refuge effect
+p_ll.0 = p_ff.0
+p_fl.0 = 1-p_ff.0
+p_lf.0 = p_fl.0
+p_ww.0 = p_ff.0
+p_lw.0 = 1-p_ww.0
+m.0 = 1
+Tr.0 = 3
+t_r.0 = 0.5 # play with this for the heat maps -- starts to get funky when super low or high? 
+t_s.0 = 1
+F_f.0 = 1.5 # ?
+F_w.0 = 2
+r.0 = 1
+v.0 = 1
+X.0 = 0.25
+Y.0 = 0.25
+b.0 = 100
+th.0 = 0.2
+h.0 = 0.1
+
+system <- function (Time, State, Pars) {
+    with(as.list(c(State, Pars)), {
+        # domestic parasites
+        dL_rF = l_r/c_r*F_f*(p_ff*L_rF + p_fl*L_rW) - (u_r+h)*L_rF - t_r*Tr/(1 + exp(-b*((L_rF+L_sF)/F_f - th)))*L_rF - m*L_rF*(L_rF+L_sF)/F_f 
+        dL_sF = l_s/c_s*F_f*(p_ff*L_sF + p_fl*L_sW) - (u_s+h)*L_sF - t_s*Tr/(1 + exp(-b*((L_rF+L_sF)/F_f - th)))*L_sF - m*L_sF*(L_rF+L_sF)/F_f
+        
+        # domesitc hosts in equilibirum
+      
+        # link
+        dL_rW = l_r/c_r*F_l*(p_ll*L_rW + p_lf*L_rF) - (u_r+Y)*L_rW - m*L_rW*(L_rW+L_sW)/F_l # no resistant subsidy
+        dL_sW = l_s/c_s*F_l*(p_ll*L_sW + p_lf*L_sF + p_lw*L_sSub) - (u_s+Y)*L_sW - m*L_sW*(L_rW+L_sW)/F_l
+        
+        # link hosts
+        dF_l = r*F_l/(v+F_l) - X*(L_rW + L_sW) - Y*F_l
+        
+        # wild subsidy and wild hosts in equilbiribum
+        
+        derivs = c(dL_rF, dL_sF,
+            dL_rW,dL_sW, dF_l)
+        
+        derivs[!is.finite(derivs)] = 0
+        
+        return(list(derivs))
+    })
+}
+
+State = c(L_rF = 0, L_sF = 0,
+    L_rW = 0.2, L_sW = 0.2, F_l = 1) 
+
+n = 100 # number of simulations
+Time = seq(0, n, length.out = 10*n)
+
+L_sSub.0 = F_w.0*(F_w.0*p_ww.0*l_s.0/c_s.0 - (u_s.0+Y.0))/m.0
+
+#set parameters to default values
+Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, u_s = u_s.0, u_r = u_r.0, m = m.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, p_lw = p_lw.0, 
+         Tr = Tr.0, t_r = t_r.0, t_s = t_s.0, b = b.0, th = th.0, h = h.0,
+         F_f = F_f.0, F_w = F_w.0, L_sSub = L_sSub.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0)
+
+out <- ode(State, Time, func = system, Pars,method='lsoda')
+
+```
+
+```{r more heatmaps -- with wild fish ratio}
+
+tr.vec <- seq(from = 0, to = 1.2, length.out = 32) # treatment
+th.vec <- seq(from = 0, to = 3, length.out = 30) # wild fish
+Fprop_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Wprop_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Flice_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Wlice_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Wfish_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+# profitC_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+profitF_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+n = 100 # number of simulations
+Time = seq(0, n, length.out = 10*n)
+t = length(Time) 
+
+pT <- 0.02 # per capita cost of treatment
+pQ <- 0.01 # per capita loss due to parasite burden
+pF <- 1.4 # per capita cost of fish (sale price)
+# hW <- 0.2 # harvest rate for wild fish -- different for link fish?
+# pC1 <- 0.8 # per capita cost of conserving truely wild fish (e.g., not fishing it)
+# pC2 <- 0.3 # per capita cost of conserving link population
+
+# L_sSub.0 = F_w.0*(F_w.0*p_ww.0*l_s.0/c_s.0 - u_s.0)/m.0
+# L_sSub.0 = ifelse(L_sSub.0 <= 0, 0, L_sSub.0)
+
+Events = data.frame(var = c("L_rF"), time = c(Time[10*n/2+1]), value = 0.01, method = c("add"))
+
+for (i in 1:length(tr.vec)) {
+  for (j in 1:length(th.vec)) {
+
+    # if doing connectivity, vectors start at 1 and go to 0.01
+    # p_ff.0 = tr.vec[i] # low connectivity case (p_ff.0 close to 1) = refuge effect
+    # p_ll.0 = p_ff.0
+    # p_fl.0 = 1-p_ff.0
+    # p_lf.0 = p_fl.0
+    # p_ww.0 = th.vec[j]
+    # p_lw.0 = 1-p_ww.0 # 0.5
+    L_sSub.0 = th.vec[j]*(th.vec[j]*p_ww.0*l_s.0/c_s.0 - u_s.0)/m.0
+    L_sSub.0 = ifelse(L_sSub.0 <= 0, 0, L_sSub.0)
+    # L_sSub.0 = F_w.0*(F_w.0*p_ww.0*l_s.0/c_s.0 - u_s.0)/m.0
+    # L_sSub.0 = ifelse(L_sSub.0 <= 0, 0, L_sSub.0)
+    
+    # iterate
+    th.0 = tr.vec[i]
+    F_w.0 = th.vec[j]
+
+    Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, u_s = u_s.0, u_r = u_r.0, m = m.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, p_lw = p_lw.0, 
+         Tr = Tr.0, t_r = t_r.0, t_s = t_s.0, b = b.0, th = th.0, h = h.0,
+         F_f = F_f.0, F_w = F_w.0, L_sSub = L_sSub.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0) 
+    # high treatment, low threshold = high dose refuge
+    
+    State = c(L_rF = 0.1, L_sF = 0, L_rW = 0, L_sW = 0.2, F_l = 1) 
+    
+    # out <- ode(State, Time, func = system, Pars, method='lsoda')
+    out <- ode(State, Time, func = system, Pars, method='lsoda', events = list(data = Events))
+    
+    out_df <- as.data.frame(out[(n/2):n, ]) # only after resistant lice introduced
+    # was treatment applied?
+    out_df$treat_applied <- ifelse(out_df$L_rF + out_df$L_sF > th.0, 1, 0)
+    out_df$treat_cost <- out_df$treat_applied*pT*F_f.0*Tr.0
+    # number of lice per fish
+    out_df$lice_burden <- (out_df$L_rF + out_df$L_sF)
+    out_df$lice_cost <- pQ*out_df$lice_burden
+    # cost of conserving a wild fish
+    out_df$wild_conserve <- pC1*F_w.0 + pC2*out_df$F_l
+    # discount rate
+    out_df$disc <- exp(-0.05*out_df$time)
+    # calc economic value
+    # out_df$profC <- out_df$disc*(pF*h*0*F_f.0 + pF*hW*F_w.0 - out_df$treat_cost - out_df$lice_cost - out_df$wild_conserve) # also some harvest rate??
+    out_df$profF <- out_df$disc*(pF*h.0*F_f.0 - out_df$treat_cost - out_df$lice_cost)
+    
+    Fprop_mat[j, i] <- out[t, 2]/(out[t, 2] + out[t, 3])
+    Wprop_mat[j, i] <- out[t, 4]/(out[t, 4] + out[t, 5])
+    Flice_mat[j, i] <- (out[t, 2] + out[t, 3])/F_f.0
+    Wlice_mat[j, i] <- (out[t, 4] + out[t, 5])/out[t, 6]
+    Wfish_mat[j, i] <- out[t, 6]
+    profitF_mat[j, i] <- sum(out_df$profF) # economic profits -- only farm
+    # profitC_mat[j, i] <- sum(out_df$profC) # economic profits -- with conserve
+    
+  }
+}
+
+# for connectivbity, add 1:1 line
+# heatmap(Fprop_mat, Colv = NA, Rowv = NA, scale = "none", add.expr = abline(0, 1))
+heatmap(Fprop_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Fprop_mat)
+# heatmap(Wprop_mat, Colv = NA, Rowv = NA, scale = "none")
+# range(Wprop_mat)
+heatmap(Flice_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Flice_mat)
+# heatmap(Wlice_mat, Colv = NA, Rowv = NA, scale = "none")
+# range(Wlice_mat)
+heatmap(Wfish_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Wfish_mat)
+heatmap(profitF_mat, Colv = NA, Rowv = NA, scale = "none")
+range(profitF_mat)
+# heatmap(profitC_mat, Colv = NA, Rowv = NA, scale = "none")
+# range(profitC_mat)
+
+```
+
+```{r more heatmaps -- without wild ratio}
+
+tr.vec <- seq(from = 0.01, to = 3, length.out = 32) # treshhold range
+th.vec <- seq(from = 0.01, to = 3, length.out = 30) # connectivity
+Fprop_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Wprop_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Flice_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Wlice_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+n = 100 # number of simulations
+Time = seq(0, n, length.out = 10*n)
+t = length(Time) 
+
+# L_sSub.0 = F_w.0*(F_w.0*p_ww.0*l_s.0/c_s.0 - u_s.0)/m.0
+# L_sSub.0 = ifelse(L_sSub.0 <= 0, 0, L_sSub.0)
+
+Events = data.frame(var = c("L_rF"), time = c(Time[10*n/2+1]), value = 0.01, method = c("add"))
+
+for (i in 1:length(tr.vec)) {
+  for (j in 1:length(th.vec)) {
+
+    # if doing connectivity, vectors start at 1 and go to 0.01
+    # p_ff.0 = th.vec[i] # low connectivity case (p_ff.0 close to 1) = refuge effect
+    # p_ll.0 = p_ff.0
+    # p_fl.0 = 1-p_ff.0
+    # p_lf.0 = p_fl.0
+    # p_ww.0 = p_ff.0 # th.vec[j]
+    # p_lw.0 = 1-p_ww.0 # 0.5
+    L_sSub.0 = F_w.0*(F_w.0*p_ww.0*l_s.0/c_s.0 - u_s.0)/m.0
+    L_sSub.0 = ifelse(L_sSub.0 <= 0, 0, L_sSub.0)
+
+    Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, u_s = u_s.0, u_r = u_r.0, m = m.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, p_lw = p_lw.0, 
+         Tr = tr.vec[i], t_r = t_r.0, t_s = t_s.0, b = b.0, th = th.vec[j], h = h.0,
+         F_f = F_f.0, F_w = F_w.0, L_sSub = L_sSub.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0) 
+    # high treatment, low threshold = high dose refuge
+    
+    State = c(L_rF = 0.1, L_sF = 0, L_rW = 0, L_sW = 0.2, F_l = 1) 
+    
+    # out <- ode(State, Time, func = system, Pars, method='lsoda')
+    out <- ode(State, Time, func = system, Pars, method='lsoda', events = list(data = Events))
+    
+    Fprop_mat[j, i] <- out[t, 2]/(out[t, 2] + out[t, 3])
+    Wprop_mat[j, i] <- out[t, 4]/(out[t, 4] + out[t, 5])
+    Flice_mat[j, i] <- (out[t, 2] + out[t, 3])/F_f.0
+    Wlice_mat[j, i] <- (out[t, 4] + out[t, 5])/out[t, 6]
+    
+  }
+}
+
+# for connectivbity, add 1:1 line
+# heatmap(Fprop_mat, Colv = NA, Rowv = NA, scale = "none", add.expr = abline(0, 1))
+heatmap(Fprop_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Fprop_mat)
+heatmap(Wprop_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Wprop_mat)
+heatmap(Flice_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Flice_mat)
+heatmap(Wlice_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Wlice_mat)
+
+```
+
+```{r better plotting?}
+
+FPM <- melt(Fprop_mat)
+for (i in 1:dim(FPM)[1]) {
+  FPM$Treat_Int[i] <- tr.vec[FPM$Var2[i]] # need to rename based on vectors
+  FPM$Wild_Ratio[i] <- th.vec[FPM$Var1[i]] # need to rename based on vectors
+}
+
+ggplot(FPM, aes(x = Treat_Int, y = Wild_Ratio)) + geom_tile(aes(fill = value)) + scale_fill_distiller(palette = "YlOrRd", direction = 1, na.value="white", limits=c(0, 1)) + theme_bw() # Spectral
+
+```
+
+```{r sensititvity extra subsidy}
+
+# get samples: 2500 combos
+m = 2500
+# LHS sampling
+P <- randomLHS(m, 18)
+# convert to vectors
+l_s.0 = qunif(P[, 1], 0.8, 1.1); c_s.0 =  qunif(P[, 2], 0.8, 1.1)
+l_r.0 = l_s.0; c_r.0 = c_s.0 # qunif(P[, 3], 0.8, 1.1); c_r.0 =  qunif(P[, 4], 0.8, 1.1)
+u_s.0 =  qunif(P[, 5], 0.1, 0.4)
+u_r.0 =  qunif(P[, 6], 1, 1.5)*u_s.0
+p_ff.0 =  qunif(P[, 7], 0, 1) # low connectivity case (p_ff.0 close to 1) = refuge effect
+p_ll.0 = p_ff.0
+p_fl.0 = 1-p_ff.0
+p_lf.0 = p_fl.0
+p_ww.0 =  qunif(P[, 8], 0, 1)
+p_lw.0 = 1-p_ww.0
+m.0 =  qunif(P[, 9], 0.8, 1.1)
+Tr.0 =  qunif(P[, 10], 0.05, 5)
+t_r.0 =  qunif(P[, 11], 0.05, 1)
+t_s.0 = rep(1, m)
+F_f.0 = qunif(P[, 12], 0.1, 3)
+F_w.0 = qunif(P[, 13], 0.1, 3)
+r.0 = qunif(P[, 14], 0.5, 1.5)
+v.0 = qunif(P[, 15], 0.1, 2)
+X.0 = qunif(P[, 16], 0.1, 0.5)
+Y.0 = qunif(P[, 17], 0.1, 0.5)
+b.0 = rep(100, m)
+th.0 = qunif(P[, 18], 0.1, 2)
+
+system <- function (Time, State, Pars) {
+    with(as.list(c(State, Pars)), {
+        # domestic parasites
+        dL_rF = l_r/c_r*F_f*(p_ff*L_rF + p_lf*L_rW) - u_r*L_rF - t_r*Tr/(1 + exp(-b*((L_rF+L_sF)/F_f - th)))*L_rF - m*L_rF*(L_rF+L_sF)/F_f # /(1 + exp(-b*((L_rF+L_sF)/F_f - th)))
+        dL_sF = l_s/c_s*F_f*(p_ff*L_sF + p_lf*L_sW) - u_s*L_sF - t_s*Tr/(1 + exp(-b*((L_rF+L_sF)/F_f - th)))*L_sF - m*L_sF*(L_rF+L_sF)/F_f
+        
+        # domesitc hosts in equilibirum
+      
+        # link
+        dL_rW = l_r/c_r*F_l*(p_ll*L_rW + p_fl*L_rF) - u_r*L_rW - m*L_rW*(L_rW+L_sW)/F_l
+        dL_sW = l_s/c_s*F_l*(p_ww*L_sW + p_fl*L_sF + p_lw*L_sSub) - u_s*L_sW - m*L_sW*(L_rW+L_sW)/F_l
+        
+        # link hosts
+        dF_l = r*F_l/(v+F_l) - X*(L_rW + L_sW) - Y*F_l
+        
+        # wild subsidy and wild hosts in equilbiribum
+        
+        derivs = c(dL_rF, dL_sF,
+            dL_rW,dL_sW, dF_l)
+        
+        derivs[!is.finite(derivs)] = 0
+        
+        return(list(derivs))
+    })
+}
+
+State = c(L_rF = 0, L_sF = 0,
+    L_rW = 0.2, L_sW = 0, F_l = 1) 
+
+n = 50 # number of simulations
+Time = seq(0, n, length.out = 100*n)
+
+Events = data.frame(var = c("L_rF"), time = c(Time[100*n/2+1]), value = 0.01, method = c("add"))
+
+mat <- matrix(NA, nrow = m, ncol = 6)
+L_sSub.0 <- rep(NA, m)
+
+# do simulations
+for(i in 1:m) {
+  
+  L_sSub.0[i] = F_w.0[i]*(F_w.0[i]*p_ww.0[i]*l_s.0[i]/c_s.0[i] - u_s.0[i])/m.0[i]
+  L_sSub.0[i] <- ifelse(L_sSub.0[i] < 0, 0, L_sSub.0[i])
+
+  #set parameters to default values
+  Pars = c(l_s = l_s.0[i], c_s = c_s.0[i], l_r = l_r.0[i], c_r = c_r.0[i], u_s = u_s.0[i], u_r = u_r.0[i], m = m.0[i],
+           p_ff = p_ff.0[i], p_ll = p_ll.0[i], p_fl = p_fl.0[i], p_lf = p_lf.0[i], p_ww = p_ww.0[i], p_lw = p_lw.0[i],
+           Tr = Tr.0[i], t_r = t_r.0[i], t_s = t_s.0[i], b = b.0[i], th = th.0[i],
+           F_f = F_f.0[i], F_w = F_w.0[i], L_sSub = L_sSub.0[i], 
+           r = r.0[i], v = v.0[i], X = X.0[i], Y = Y.0[i])
+
+out <- ode(State, Time, func = system, Pars,method='lsoda', events = list(data = Events))
+
+mat[i, ] <- out[length(Time), ]
+
+}
+
+dat_input <- data.frame(
+  l_s = l_s.0, c_s = c_s.0, 
+  # l_r = l_r.0, c_r = c_r.0, 
+  u_s = u_s.0, u_r = u_r.0, m = m.0,
+  p_ff = p_ff.0, # p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, 
+  p_ww = p_ww.0, # p_lw = p_lw.0,
+  Tr = Tr.0, t_r = t_r.0, # t_s = t_s.0, b = b.0, 
+  th = th.0,
+  F_f = F_f.0, F_w = F_w.0, # L_sSub = L_sSub.0,
+  r = r.0, v = v.0, X = X.0, Y = Y.0
+)
+
+dat_output <- data.frame(
+  resist.lice = mat[, 2]/(mat[, 2] + mat[, 3]),
+  lice.per.fish = (mat[, 2] + mat[, 3])/dat_input$F_f, 
+  wild.juv = mat[, 6]
+)
+
+RF1 <- randomForest(x = dat_input, y = dat_output$resist.lice,importance=TRUE,proximity=TRUE)
+varImpPlot(RF1) # connectivity, pop sizes (farm/wild), tradeoff, threshold
+RF2 <- randomForest(x = dat_input, y = dat_output$lice.per.fish,importance=TRUE,proximity=TRUE)
+varImpPlot(RF2) # farm pop size, threshold, connectivity, link population size, treatment
+RF3 <- randomForest(x = dat_input, y = dat_output$wild.juv,importance=TRUE,proximity=TRUE)
+varImpPlot(RF3) # link population parameters (v, r, X, Y), pop sizes (farm/wild), connectivity
+
+
+```
+
+```{r loose economic thing??}
+
+pT <- 0.7 # per capita cost of treatment
+pQ <- 0.1 # per capita loss due to parasite burden
+pF <- 2 # per capita cost of fish (sale price)
+pC1 <- 0.1 # per capita cost of conserving truely wild fish
+pC2 <- 0.3 # per capita cost of conserving link population
+
+out_df <- as.data.frame(out[(n/2):n, ]) # only after resistant lice introduced
+# was treatment applied?
+out_df$treat_applied <- ifelse(out_df$L_rF + out_df$L_sF > th.0, 1, 0)
+out_df$treat_cost <- out_df$treat_applied*pT*F_f.0*Tr.0
+# number of lice per fish
+out_df$lice_burden <- (out_df$L_rF + out_df$L_sF)
+out_df$lice_cost <- pQ*out_df$lice_burden
+# cost of conserving a wild fish
+out_df$wild_conserve <- pC1*F_w.0 + pC2*out_df$F_l
+# discount rate
+out_df$disc <- exp(-0.05*out_df$time)
+# calc economic value
+out_df$prof <- out_df$disc*(pF*F_f.0 - out_df$treat_cost - out_df$lice_cost - out_df$wild_conserve)
+sum(out_df$prof) # economic profits
+
+```
+
+better way to do subsidy mimics Bateman but keeps key Murray features (e.g., lice reproduction in link environment for baby fish)
+
+```{r changing subsidy -- more like bateman}
+
+l_s.0 = 1; c_s.0 = 1
+# l_r.0 = 1; c_r.0 = 1
+l_r.0 = 0.9; c_r.0 = 1 # similar to Murray values
+u_s.0 = .1
+u_r.0 = .1 # 1.4*u_s.0 # 1.1*u_s.0
+m.0 = 1
+
+p_ff.0 = 0.95 # low connectivity case (p_ff.0 close to 1) = refuge effect
+p_ll.0 = p_ff.0
+p_fl.0 = 1-p_ff.0
+p_lf.0 = p_fl.0
+p_ww.0 = 1 # fish more spread apart?? reasonable lice counts
+B_f.0 = 1 # all the lice attach type vibe
+B_l.0 = 0.5 # slightly lower in the link population -- bateman vibe
+B_w.0 = 0.1 # lowest in wild
+
+Tr.0 = 3
+t_r.0 = 0.5
+t_s.0 = 1
+b.0 = 100
+th.0 = 0.01
+h.0 = 0.1
+
+F_f.0 = 1
+F_w.0 = 3
+r.0 = 1
+v.0 = 1
+X.0 = 0.25
+Y.0 = 0.25
+u_f.0 = 0.25
+sig.0 = 0.5
+M_out.0 = 0.2
+M_in.0 = 0.1
+
+systemS <- function (Time, State, Pars) {
+    with(as.list(c(State, Pars)), {
+       
+        # domestic parasites
+        dL_rF = l_r/c_r*F_f*B_f*(p_ff*L_rF + p_fl*(M_out*F_l*L_rW)/((F_w+M_out*F_l/M_in)*(u_r + sig))) - (u_r+h)*L_rF - t_r*Tr/(1 + exp(-b*((L_rF+L_sF)/F_f - th)))*L_rF - m*L_rF*(L_rF+L_sF)/F_f # no resistant subsidy
+        dL_sF = l_s/c_s*F_f*(p_ff*L_sF + p_fl*(M_out*F_l*L_sW)/((F_w+M_out*F_l/M_in)*(u_s + sig))) - (u_s+h)*L_sF - t_s*Tr/(1 + exp(-b*((L_rF+L_sF)/F_f - th)))*L_sF - m*L_sF*(L_rF+L_sF)/F_f
+        
+        # domesitc hosts in equilibirum
+      
+        # link parasites
+        dL_rL = l_r/c_r*F_l*B_l*(p_ll*L_rL + p_lf*L_rF) - (u_r+Y+M_out)*L_rL - m*L_rL*(L_rL+L_sL)/F_l 
+        dL_sL = l_s/c_s*F_l*B_l*(p_ll*L_sL + p_lf*L_sF) - (u_s+Y+M_out)*L_sL - m*L_sL*(L_rL+L_sL)/F_l
+        
+        # link hosts
+        dF_l = r*F_l/(v+F_l) - X*(L_rL + L_sL) - Y*F_l - M_out*F_l # hosts leave by maturing
+        
+        # wild subsidy
+        dL_rW = l_r/c_r*B_w*(F_w + (M_out*F_l/M_in))*p_ww*L_rW + M_out*L_rL - (u_r+u_f)*L_rW - M_out*F_l*L_rW/(F_w + (M_out*F_l/M_in)) - m*L_rW*(L_rW+L_sW)/(F_w + (M_out*F_l/M_in))
+        dL_sW = l_s/c_s*B_w*(F_w + (M_out*F_l/M_in))*p_ww*L_sW + M_out*L_sL - (u_s+u_f)*L_sW - M_out*F_l*L_sW/(F_w + (M_out*F_l/M_in)) - m*L_sW*(L_rW+L_sW)/(F_w + (M_out*F_l/M_in))
+        
+        # wild hosts, spawning hosts & spawning parasites in equilbiribum
+        
+        derivs = c(dL_rF, dL_sF,
+            dL_rL,dL_sL, dF_l, 
+            dL_rW, dL_sW)
+        
+        derivs[!is.finite(derivs)] = 0
+        
+        return(list(derivs))
+    })
+}
+
+State = c(L_rF = 0.1, L_sF = 0, 
+    L_rL = 0, L_sL = 0, F_l = 1,
+    L_rW = 0, L_sW = 0.2) 
+
+n = 300 # number of simulations -- seems to get to some version of equilibrium
+Time = seq(0, n, length.out = 10*n)
+mxn = max(Time)
+
+#set parameters to default values
+Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
+         u_s = u_s.0, u_r = u_r.0, m = m.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
+         B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
+         Tr = Tr.0, t_r = t_r.0, t_s = t_s.0, b = b.0, th = th.0, h = h.0,
+         F_f = F_f.0, F_w = F_w.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
+         M_out = M_out.0, M_in = M_in.0)
+
+out <- ode(State, Time, func = systemS, Pars,method='lsoda')
+
+# gut check: Tr.0 = 3; F_w.0 = 3; F_f.0 = 1; th.0 = 0.01 keeps resistant lice at bay
+# gut check: Tr.0 = 1; F_w.0 = 1; F_f.0 = 1; th.0 = 0.2 allows resistant lice
+# plus: "" but with more connectivity only helps if wild lice have lots of host attachment (need a lot of lice per fish)
+# gut check: Tr.0 = 0.01; F_w.0 = 3; F_f.0 = 1; th.0 = 0.01 low treatment + subsidy coming through to stop resistant invasion
+# and -- F_l not super influenced by number of wild fish now. but wild parasite burden is through the roof if p_ww.0 is "high"
+
+```
+
+```{r tracking wild parasites heatmaps}
+
+tr.vec <- seq(from = 0, to = 5, length.out = 32) # treatment
+th.vec <- seq(from = 0, to = 0.6, length.out = 30) # wild fish
+Fprop_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Flice_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Wfish_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+profitF_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+Wlice_mat <- matrix(NA, nrow = length(th.vec), ncol = length(tr.vec))
+n = 300 # number of simulations
+Time = seq(0, n, length.out = 10*n)
+t = length(Time) 
+
+pT <- 0.02 # per capita cost of treatment
+pQ <- 0.01 # per capita loss due to parasite burden
+pF <- 4 # per capita cost of fish (sale price)
+
+# use concept of starting with no resistant lice
+Events = data.frame(var = c("L_rF"), time = c(Time[10*n/2+1]), value = 0.01, method = c("add"))
+
+for (i in 1:length(tr.vec)) {
+  for (j in 1:length(th.vec)) {
+
+    # if doing connectivity, vectors start at 1 and go to 0.01
+    # p_ff.0 = tr.vec[i] # low connectivity case (p_ff.0 close to 1) = refuge effect
+    # p_ll.0 = p_ff.0
+    # p_fl.0 = 1-p_ff.0
+    # p_lf.0 = p_fl.0
+    
+    # iterate
+    Tr.0 = tr.vec[i]
+    # F_w.0 = th.vec[j]
+    th.0 = th.vec[j]
+
+    Pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
+         u_s = u_s.0, u_r = u_r.0, m = m.0,
+         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
+         B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
+         Tr = Tr.0, t_r = t_r.0, t_s = t_s.0, b = b.0, th = th.0, h = h.0,
+         F_f = F_f.0, F_w = F_w.0, 
+         r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
+         M_out = M_out.0, M_in = M_in.0)
+    
+    # start with lice in the wild only
+    State = c(L_rF = 0, L_sF = 0, L_rL = 0, L_sL = 0, F_l = 1, L_rW = 0, L_sW = 0.2) 
+    
+    out <- ode(State, Time, func = systemS, Pars, method='lsoda', events = list(data = Events))
+    
+    out_df <- as.data.frame(out[(t/2):t, ]) # only after resistant lice introduced
+    # was treatment applied?
+    out_df$treat_applied <- ifelse(out_df$L_rF + out_df$L_sF > th.0, 1, 0)
+    # number of lice per fish
+    # out_df$lice_burden <- (out_df$L_rF + out_df$L_sF)
+    # out_df$lice_cost <- pQ*out_df$lice_burden # number of fish cancels out
+    # discount rate
+    # out_df$disc <- exp(-0.05*out_df$time)
+    # calc economic value
+    out_df$profF <- exp(-0.05*out_df$time)*(pF*h.0*F_f.0 - out_df$treat_applied*pT*F_f.0*Tr.0 - pQ*(out_df$L_rF + out_df$L_sF))
+    # exp(-0.05*out_df$time)*(pF*h.0*F_f.0 - out_df$treat_applied*pT*F_f.0*Tr.0 - pQ*(out_df$L_rF + out_df$L_sF))
+    
+    Fprop_mat[j, i] <- out[t, 2]/(out[t, 2] + out[t, 3])
+    Flice_mat[j, i] <- (out[t, 2] + out[t, 3])/F_f.0
+    Wfish_mat[j, i] <- out[t, 6]
+    profitF_mat[j, i] <- sum(out_df$profF) # economic profits -- only farm
+    Wlice_mat[j, i] <- (out[t, 7] + out[t, 8])/F_w.0
+
+  }
+}
+
+# for connectivbity, add 1:1 line
+# heatmap(Fprop_mat, Colv = NA, Rowv = NA, scale = "none", add.expr = abline(0, 1))
+heatmap(Fprop_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Fprop_mat)
+heatmap(Flice_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Flice_mat)
+heatmap(Wfish_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Wfish_mat)
+heatmap(profitF_mat, Colv = NA, Rowv = NA, scale = "none")
+range(profitF_mat)
+heatmap(Wlice_mat, Colv = NA, Rowv = NA, scale = "none")
+range(Wlice_mat)
+
+```

@@ -1,0 +1,223 @@
+---
+title: "non-spatial gam comps"
+output: html_document
+date: '2022-07-26'
+---
+
+```{r setup, include=FALSE}
+
+library(mgcv)
+library(sdmTMB)
+library(dplyr)
+library(tidyr)
+library(rethinking)
+library(ggeffects)
+
+```
+
+##data
+
+```{r sn data}
+
+# use crab_cod
+sn_comp <- crab_cod[complete.cases(crab_cod[ , c('bot_temp', 'sn_avg_width')]), ] %>% 
+  filter(year %in% seq(from = 1990, to = 2019)) %>% # for lag
+  mutate(bcd_lag = standardize(sn_bcd_lag),
+         NS = standardize(sn_NShell), 
+         w = standardize(sn_avg_width), 
+         tans = standardize(tan_Tot_Pop), 
+         cod = standardize(cod_Tot_Pop), 
+         envPCA = standardize(env), 
+         jdate = standardize(jday), 
+         temp = standardize(bot_temp),
+         depth = standardize(deep))
+sn_comp$year_fact <- as.factor(sn_comp$year)
+
+sn_mesh <- make_mesh(sn_comp, xy_cols = c("X", "Y"), cutoff = 40)
+# plot(sn_mesh) # checking that mesh is good
+
+```
+
+```{r tan data}
+
+# use crab_cod
+tan_comp <- crab_cod[complete.cases(crab_cod[ , c('bot_temp', 'tan_avg_width')]), ] %>% 
+  filter(year %in% seq(from = 1990, to = 2019)) %>% # for lag
+  mutate(bcd_lag = standardize(tan_bcd_lag),
+         NS = standardize(tan_NShell), 
+         w = standardize(tan_avg_width), 
+         sns = standardize(sn_Tot_Pop), 
+         cod = standardize(cod_Tot_Pop), 
+         envPCA = standardize(env), 
+         jdate = standardize(jday), 
+         temp = standardize(bot_temp),
+         depth = standardize(deep))
+tan_comp$year_fact <- as.factor(tan_comp$year)
+
+tan_mesh <- make_mesh(tan_comp, xy_cols = c("X", "Y"), cutoff = 40)
+
+```
+
+##GAMS
+
+```{r sn gams, echo=FALSE}
+
+# everything model
+sn_gam1 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(tans) + s(cod) + s(temp) + s(depth) + s(jdate, by = year_fact), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam1) # R-sq.(adj) = 0.607; Deviance explained = 79%; -REML = 8440.6
+BIC(sn_gam1) # 17979.31
+
+# removing by year buisness
+sn_gam2 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(tans) + s(cod) + s(temp) + s(depth) + s(jdate), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam2) # R-sq.(adj) = 0.45; Deviance explained = 74%; -REML = 8611.3
+BIC(sn_gam2) # 17737.16
+
+# no environmentals
+sn_gam3 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(tans) + s(cod) + s(jdate), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam3) # R-sq.(adj) = 0.34; Deviance explained = 72.9%; -REML = 8632.6
+BIC(sn_gam3) # 17711.41
+
+# no community
+sn_gam4 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(temp) + s(depth) + s(jdate), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam4) # R-sq.(adj) = 0.42; Deviance explained = 73.3%; -REML = 8630.1
+BIC(sn_gam4) # 17715.32
+
+# crab demos
+sn_gam5 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(jdate), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam5) # R-sq.(adj) = 0.309; Deviance explained = 72%; -REML = 8657.8
+BIC(sn_gam5) ## 17704.6
+
+# just counts
+sn_gam6 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(jdate), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam6) # R-sq.(adj) =  0.288; Deviance explained = 70.6%; -REML = 8702.1
+BIC(sn_gam6) # 17752.91
+
+# enviros with date by year
+sn_gam7 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(temp) + s(depth) + s(jdate, by = year_fact), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+# last thing is removing jdate
+sn_gam8 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(tans) + s(cod) + s(temp) + s(depth), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam8) # R-sq.(adj) = 0.456; Deviance explained = 72.8%; -REML = 8662.4
+BIC(sn_gam8) # 17819.83
+
+sn_gam9 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(NS) + s(w) + s(jdate), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+summary(sn_gam9) # R-sq.(adj) = 0.266; Deviance explained = 71.7%; -REML = 88658.4452.4
+BIC(sn_gam9) # 17666.87
+
+b <- BIC(sn_gam1, sn_gam2, sn_gam3, sn_gam4, sn_gam5, sn_gam6, sn_gam7, sn_gam8, sn_gam9)
+arrange(b, BIC) # model 9 is lowest, then 5, then no enviros, then no com
+
+a <- AIC(sn_gam1, sn_gam2, sn_gam3, sn_gam4, sn_gam5, sn_gam6, sn_gam7, sn_gam8)
+arrange(a, AIC) # model 1, 7, then 2 (likes date by year part). logLik same general top order
+
+sn_env1 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(tans) + s(cod) + s(env, by = year_fact), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+sn_env2 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(tans) + s(cod) + s(env), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+sn_env3 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(bcd_lag) + s(NS) + s(w) + s(env), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+sn_env4 <- gam(
+  formula = sn_count_bcd ~ year_fact + s(NS) + s(w) + s(env), 
+  data = sn_comp,
+  family = tw(link = "log")
+)
+
+be <- BIC(sn_env1, sn_env2, sn_env3, sn_env4)
+arrange(be, BIC) # model 2, 3, 4, 1
+
+ae <- AIC(sn_env1, sn_env2, sn_env3, sn_env4)
+arrange(ae, AIC) # model 1, 2, 3, 4
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r shields-esk plots}
+
+# just by width
+ebs_dat$sn_sz_cat <- cut(ebs_dat$sn_avg_width, breaks = c(-Inf, 20, 40, 60, 80, 100, Inf)) 
+swd <- ebs_dat %>% group_by(sn_sz_cat) %>% summarise(sn_avg_prv = sum(sn_count_bcd, na.rm = TRUE)/sum(sn_Tot_Pop, na.rm = TRUE))
+plot(swd)
+
+# by width/sex
+snow_bcd$sn_sz <- cut(snow_bcd$WIDTH, breaks = c(-Inf, 20, 40, 60, 80, 100, Inf)) 
+snow_bcd$cpue <- snow_bcd$SAMPLING_FACTOR/snow_bcd$AREA_SWEPT 
+snow_bcd$yn <- ifelse(snow_bcd$DISEASE_CODE == 2, 1, 0)
+snow_bcd$bcd_cpue <- snow_bcd$yn*snow_bcd$cpue
+swd <- snow_bcd %>% filter(SEX < 3) %>% group_by(sn_sz, SEX) %>% summarise(sn_avg_prv = sum(bcd_cpue, na.rm = TRUE)/sum(cpue, na.rm = TRUE))
+ggplot(swd, aes(sn_sz, sn_avg_prv)) + geom_col(aes(fill = as.factor(SEX)), position = 'dodge')
+sscd <- snow_bcd %>% group_by(SHELL_CONDITION) %>% summarise(sn_avg_prv = sum(bcd_cpue, na.rm = TRUE)/sum(cpue, na.rm = TRUE))
+ggplot(sscd, aes(SHELL_CONDITION, sn_avg_prv)) + geom_col()
+
+
+ebs_dat$tan_sz_cat <- cut(ebs_dat$tan_avg_width, breaks = c(-Inf, 20, 40, 60, 80, 100, 120, 140, Inf)) 
+twd <- ebs_dat %>% group_by(tan_sz_cat) %>% summarise(tan_avg_prv = sum(tan_count_bcd, na.rm = TRUE)/sum(tan_Tot_Pop, na.rm = TRUE))
+plot(twd)
+
+# by width/sex
+tanner_bcd$tan_sz <- cut(tanner_bcd$WIDTH, breaks = c(-Inf, 20, 40, 60, 80, 100, 120, 140, Inf)) 
+tanner_bcd$cpue <- tanner_bcd$SAMPLING_FACTOR/tanner_bcd$AREA_SWEPT 
+tanner_bcd$yn <- ifelse(tanner_bcd$DISEASE_CODE == 2, 1, 0)
+tanner_bcd$bcd_cpue <- tanner_bcd$yn*tanner_bcd$cpue
+twd <- tanner_bcd %>% filter(SEX < 3) %>% group_by(tan_sz, SEX) %>% summarise(tan_avg_prv = sum(bcd_cpue, na.rm = TRUE)/sum(cpue, na.rm = TRUE))
+ggplot(twd, aes(tan_sz, tan_avg_prv)) + geom_col(aes(fill = as.factor(SEX)), position = 'dodge')
+tscd <- tanner_bcd %>% group_by(SHELL_CONDITION) %>% summarise(tan_avg_prv = sum(bcd_cpue, na.rm = TRUE)/sum(cpue, na.rm = TRUE))
+ggplot(tscd, aes(SHELL_CONDITION, tan_avg_prv)) + geom_col()
+
+```
