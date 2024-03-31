@@ -1,5 +1,5 @@
 l_s.0 = 6.35; c_s.0 = 1/5 
-l_r.0 = l_s.0*0.9; c_r.0 = c_s.0 # similar to Murray values: l_s.0*0.98
+l_r.0 = l_s.0*0.95; c_r.0 = c_s.0 # similar to Murray values: l_s.0*0.98
 u_s.0 = 1/60
 u_r.0 = u_s.0 # Bateman et al modifies resistant lice here
 m.0 = 0.01 # to modify equilibrium values, basically the competition
@@ -38,20 +38,12 @@ pQ.0 = 2
 n = 365*5 # for daily pars --> 10 years
 Time = seq(0, n, length.out = n+1)
 
-approx_pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
-              u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
-              p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
-              B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
-              t_r = t_r.0, t_s = t_s.0, th = th.0, h = h.0,
-              F_f = F_f.0, F_w = F_w.0, 
-              r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
-              M_out = M_out.0, M_in = M_in.0)
-
 ###########################################################
 
-l_s.0 = 1; c_s.0 = 1 # l_s.0 = 1
+
+l_s.0 = 3; c_s.0 = 1 # l_s.0 = 1
 # l_r.0 = 1; c_r.0 = 1
-l_r.0 = 0.95*l_s.0; c_r.0 = 1 # similar to Murray values
+l_r.0 = 0.9*l_s.0; c_r.0 = 1 # similar to Murray values
 u_s.0 = .1
 u_r.0 = .1 # Bateman et al modifies resistant lice here
 m.0 = 1; mb.0 = 1
@@ -62,33 +54,24 @@ p_fl.0 = 1-p_ff.0 # ...or jump to wild (spillover)
 p_lf.0 = p_fl.0 # spillback rate
 p_ww.0 = 1 # all lice in wild stay in that environment
 B_f.0 = 1 # all the lice attach type vibe
-B_l.0 = 0.75 # slightly lower in the link population -- bateman vibe
-B_w.0 = 0.25 # lowest in wild
+B_l.0 = 0.5 # slightly lower in the link population -- bateman vibe
+B_w.0 = 0.1 # lowest in wild
 
+t_r.0 = 0.05 # similar to Murray
 t_s.0 = 0.9
-t_r.0 = t_s.0*0.1 # similar to Murray
-th.0 = 10 # Murray/Bateman: continous treatment
+th.0 = 0.01 # Murray/Bateman: continous treatment
 h.0 = 0.1
 
 F_f.0 = 1 # normalize farm fish population size
-F_w.0 = 5 # I think this is right?
-r.0 = 1.5
+F_w.0 = 6 # I think this is right?
+r.0 = 1
 v.0 = 1
-X.0 = 0.4 # parasite induced mortality
-Y.0 = 0.1 # 0.1
-u_f.0 = 0
+X.0 = 0.25 # 0.4
+Y.0 = 0.25 # 0.1
+u_f.0 = 0.25
 M_out.0 = 0.2
 M_in.0 = 0.1
 sig.0 = 0.5
 
 n = 365 
 Time = seq(0, 5*n, length.out = 5*n+1)
-
-base_pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
-         u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
-         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
-         B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
-         t_r = t_r.0, t_s = t_s.0, th = th.0, h = h.0,
-         F_f = F_f.0, F_w = F_w.0, 
-         r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
-         M_out = M_out.0, M_in = M_in.0)

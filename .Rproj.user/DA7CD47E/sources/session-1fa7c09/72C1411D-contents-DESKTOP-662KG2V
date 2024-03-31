@@ -1,0 +1,98 @@
+---
+title: "density-dependent refuge"
+author: "Laurie Balstad"
+date: "2022-10-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(deSolve)
+library(matlib)
+library(sparsevar) 
+
+```
+
+three axis to play on: treatment intensity, threshold level, and host population sizes
+
+want to consider both lice population size (lice/host) and percent resistant in each environment
+
+case where resistance should not occur: low threshold, high treatment, large reservior
+case where resistance could occur: high threshold, low treatment, small reservior
+--> too high threshold means never treat
+--> too low treatment no benefit to being resistant??
+
+```{r bateman code}
+
+# default parameter values 
+# domestic hosts & treatment
+domestic.hosts = 6e3
+h.0 = 0.67
+gamma_T.0 = 5; thres.0 = 2; mu.0 = 20; epsilon_r.0 = 0.01
+# parasite values
+beta_DD.0 = 0.22*1.77e-7
+wild.transmission.factor = 1
+spill.transmission.factor = 1
+beta_WW.0 = beta_DD.0*wild.transmission.factor
+beta_WD.0 = beta_DD.0*spill.transmission.factor
+beta_DW.0 = beta_DD.0*spill.transmission.factor
+mu_s.0 = 6.08; mu_r.0 = 6.38 
+lambda_s.0 = 2.32e3; lambda_r.0 = 2.32e3; c.0 = 73 
+alpha.0 = 4
+# wild hosts
+wild.growth.0 = 2 # wild population intrinsic growth rate
+wild.mortality.0 = .5
+wild.factor = 10
+
+print.error = TRUE
+
+# set up the system of differential equations
+system <- function (Time, State, Pars) {
+    with(as.list(c(State, Pars)), {
+        # domestic
+        dF_D = 0
+        dL_sD = lambda_s/c*(beta_DD*L_sD + beta_DW*L_sU)*F_D - (mu_s+h)*L_sD - gamma_T/(1+exp(-mu*((L_sD + L_rD)/F_D - thres)))*(L_sD + L_rD)/F_D*L_sD
+        dL_rD = lambda_r/c*(beta_DD*L_rD + beta_DW*L_rU)*F_D - (mu_r+h)*L_rD - epsilon_r*gamma_T/(1+exp(-mu*((L_sD + L_rD)/F_D - thres)))*((L_sD + L_rD)/F_D)*L_rD
+      
+        #unexposed
+        dW = 0 # (wild.growth-wild.mortality)*W - alpha*(L_sU + L_rU)
+        dL_sU = lambda_s/c*(beta_WW*L_sU + beta_WD*L_sD)*W - (mu_s + wild.mortality)*L_sU # - (1 + ((L_sU + L_rU)/W))*alpha*L_sU
+        dL_rU = lambda_r/c*(beta_WW*L_rU + beta_WD*L_rD)*W - (mu_r + wild.mortality)*L_rU # - (1 + ((L_sU + L_rU)/W))*alpha*L_rU
+        
+        derivs = c(dF_D, dL_sD, dL_rD,
+            dW, dL_sU,dL_rU)
+        
+        derivs[!is.finite(derivs)] = 0
+        
+        return(list(derivs))
+    })
+}
+
+#starting population values (to be simulated to equilibrium before inoculation with resistant lice
+State = c(F_D = domestic.hosts, L_sD = 0, L_rD = 0,
+    W = domestic.hosts*wild.factor, L_sU = domestic.hosts*2, L_rU = 0) 
+
+#set parameters to default values
+Pars = c(
+    alpha = alpha.0, mu_s = mu_s.0, mu_r = mu_r.0,              
+    h = h.0, gamma_T = gamma_T.0, 
+    epsilon_r = epsilon_r.0, mu = mu.0, thres = thres.0,   
+    lambda_s = lambda_s.0, lambda_r = lambda_r.0, c = c.0,  
+    beta_DD = beta_DD.0, beta_WW = beta_WW.0, 
+    beta_WD = beta_WD.0, beta_DW = beta_DW.0, 
+    wild.growth = wild.growth.0, wild.mortality = wild.mortality.0)
+
+n = 5000 # number of simulations
+Time = seq(0, n, length.out = n+1)
+
+# inoculate system with one resistant louse at the halfway mark
+Events = data.frame(var = c("L_rD"), time = c(Time[n/2+1]), value = 1, method = c("add"))
+
+# test simulate
+out <- ode(State, Time, func = system, Pars,method='lsoda',
+    events = list(data = Events))
+
+out[n/2, ]
+out[n, ]
+
+```
