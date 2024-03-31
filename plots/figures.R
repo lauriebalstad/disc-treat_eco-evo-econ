@@ -7,14 +7,12 @@ library(viridis)
 library(doParallel)
 library(cowplot)
 
-# to do: set up save better, e.g., list format with parameters as first element, df(s) as next elements
-
 #----figure 2: economic outcomes----
 # using base parameters
 
 # set up & make function
 {
-tr.vec <- tr.vec <- seq(from = 0.3, to = 0.9, length.out = 5) # treatment effect --> might be interesting to also do with wild fish to see how threshold & wild fish interact
+tr.vec <- tr.vec <- seq(from = 0.3, to = 0.9, length.out = 4) # treatment effect --> might be interesting to also do with wild fish to see how threshold & wild fish interact
 th.vec <- seq(from = 0.01, to = 1.11, length.out = 11) # threshold
 # tr.vec <- c(0.35, 0.55, 0.75, 0.95) # treatment effect --> might be interesting to also do with wild fish to see how threshold & wild fish interact
 # th.vec <- c(0.0015, 1:18) # threshold
@@ -79,8 +77,6 @@ outcomes_ecol_econ <- function() {
   outcome_vals <- outcomes_ecol_econ()
 }
 
-save(outcome_vals, file = "simulated data/outcome_vals.Rdata")
-
 # manipulate dataframes to add economics columns
 {# melt & join outcomes
   treatment_apps <- melt(outcome_vals[[1]])
@@ -112,8 +108,9 @@ save(outcome_vals, file = "simulated data/outcome_vals.Rdata")
   econ_long <- econ_dat %>% pivot_longer(cols = c('high treatment cost', 'low treatment cost'))
 }
 
-save(econ_dat, file = "simulated data/econ_dat.Rdata")
-save(econ_long, file = "simulated data/econ_long.Rdata")
+# make list of economic things
+econ_outs <- list(base_pars, outcome_vals, econ_dat, econ_long)
+save(econ_outs, file = "simulated data/econ_outs.Rdata")
 
 # make figures
 {no_treat_loss <- econ_long$value[which(econ_long$Threshold == max(econ_long$Threshold))[1]]
@@ -147,7 +144,8 @@ fig2
   link_size$standard <- link_size$value/max(link_size$value)
 }
 
-save(link_size, file = "simulated data/link_size.Rdata")
+ecol_outs <- list(base_pars, outcome_vals, link_size)
+save(ecol_outs, file = "simulated data/ecol_outs.Rdata")
 
 # make figures
 {fig3 <- ggplot(link_size, aes(Threshold, standard, col = as.factor(Treat_Int))) + 
@@ -170,16 +168,16 @@ cl <- parallel::makeCluster(detectCores())
 doParallel::registerDoParallel(cl)
 
 # set up & make function
-{tr.vec <- seq(from = 0.3, to = 0.9, length.out = 5) # treatment effect --> might be interesting to also do with wild fish to see how threshold & wild fish interact
+{tr.vec <- seq(from = 0.3, to = 0.9, length.out = 4) # treatment effect --> might be interesting to also do with wild fish to see how threshold & wild fish interact
   th.vec <- seq(from = 0.01, to = 1.11, length.out = 11) # threshold
   tr_th <- expand.grid(treat_eff = tr.vec, thresh_val = th.vec)
 tr_th$connectivity <- rep(p_ff.0); tr_th$wildfish <- rep(F_w.0); tr_th$productivity <- rep(r.0); tr_th$type <- rep("base parameters")
 tr_th_conn <- expand.grid(treat_eff = tr.vec, thresh_val = th.vec)
 tr_th_conn$connectivity <- rep(p_ff.0-0.1); tr_th_conn$wildfish <- rep(F_w.0); tr_th_conn$productivity <- rep(r.0); tr_th_conn$type <- rep("increased connectivity")
 tr_th_refg <- expand.grid(treat_eff = tr.vec, thresh_val = th.vec)
-tr_th_refg$connectivity <- rep(p_ff.0); tr_th_refg$wildfish <- rep(F_w.0*3); tr_th_refg$productivity <- rep(r.0); tr_th_refg$type <- rep("increased refuge")
+tr_th_refg$connectivity <- rep(p_ff.0); tr_th_refg$wildfish <- rep(F_w.0*2.5); tr_th_refg$productivity <- rep(r.0); tr_th_refg$type <- rep("increased refuge")
 tr_th_prod <- expand.grid(treat_eff = tr.vec, thresh_val = th.vec)
-tr_th_prod$connectivity <- rep(p_ff.0); tr_th_prod$wildfish <- rep(F_w.0); tr_th_prod$productivity <- rep(r.0*2); tr_th_prod$type <- rep("increased link productivity")
+tr_th_prod$connectivity <- rep(p_ff.0); tr_th_prod$wildfish <- rep(F_w.0); tr_th_prod$productivity <- rep(r.0*1.5); tr_th_prod$type <- rep("increased link productivity")
 TR_TH <- rbind(tr_th, tr_th_conn, tr_th_refg, tr_th_prod)
 # TR_TH <- rbind(tr_th, tr_th_refg)
 
@@ -237,11 +235,19 @@ evol_dat <- TR_TH
 evol_dat$value <- unlist(resist_percent_list)
 }
 
-save(evol_dat, file = "simulated data/evol_dat.Rdata")
+evol_outs <- list(base_pars, evol_dat)
+save(evol_outs, file = "simulated data/evol_outs.Rdata")
+
+base_par_range <- evol_dat %>% filter(type == "base parameters") %>% select(-type) %>% 
+  pivot_wider(names_from = treat_eff, values_from = value) %>% 
+  select(c(thresh_val, `0.3`, `0.9`))
+colnames(base_par_range) <- c("thresh_val", "lower", "upper")
 
 # make figures
-{fig4 <- ggplot(evol_dat, aes(thresh_val, value, col = as.factor(treat_eff))) + 
-    geom_point(size = 1.4) + 
+{fig4 <- ggplot(data = evol_dat) + 
+    geom_linerange(data = base_par_range,
+                   aes(x = thresh_val, ymin = lower, ymax = upper), size = 1.4, col = "gray") + 
+    geom_point(aes(thresh_val, value, col = as.factor(treat_eff)), size = 1.4) + 
     facet_wrap(~type, nrow=2) +
     scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
     theme(legend.position = "bottom",
@@ -271,9 +277,7 @@ fronts <- merge(tmp, tmp2, by = c("treat_eff", "thresh_val"))
     # line across threshold options
     geom_path(aes(group = as.factor(thresh_val)), col = "gray80", lty = "dashed") + 
     # line across fronters
-    geom_path(data = fronts %>% 
-                filter(treat_eff == tr.vec[5] | thresh_val < 0.02) %>% 
-                arrange(econ, descending = F), 
+    geom_path(data = fronts[c(44, 43, 42, 40, 39, 38, 37, 36, 35, 34, 23, 12, 1), ], 
               col = "gray45") + 
     guides(lty = "none") + 
     geom_point(size = 1.4) + 
@@ -287,8 +291,8 @@ evol_econ <- ggplot(fronts, # %>% filter(thresh_val %in% th.vec[c(1, 3, 5, 7, 9,
                     aes(-evol, -econ)) + 
   # line across threshold options
   geom_path(aes(group = as.factor(thresh_val)), col = "gray80", lty = "dashed") + 
-  # line across fronters
-  geom_line(data = fronts[c(8, 51, 50, 90, 45, 34, 23, 12, 1, 49), ], 
+  # line across fronters 
+  geom_line(data = fronts[c(42, 31, 20, 30, 41, 9, 1, 12, 23, 34, 40), ], 
             col = "gray45") + 
   geom_point(size = 1.4, aes(col = as.factor(treat_eff))) + 
   scale_color_viridis(discrete = T, direction = -1) +  
@@ -325,6 +329,8 @@ fig5 <- plot_grid(plts_fig5, leg,
                   rel_widths = c(3, 0.35),
                   nrow = 1)
 
+fig5
+
 #----figure 6: trade-offs----
 
 # need to smooth out and maybe increase the selectivity range??
@@ -335,29 +341,21 @@ doParallel::registerDoParallel(cl)
 # set up & make function
 {
 cost.vect <- seq(from = 0.85, to = 0.99, length.out = 8)
-select.vect <- seq(0.35, to = 0.65, length.out = 7) 
+select.vect <- seq(0.01, to = 0.15, length.out = 8) 
 cost_select <- expand.grid(select = select.vect, cost = cost.vect)
-  
-  # think about how to prep the foreach loop --> check how you did it in the evo rescue files?
-  base_pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
-                u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
-                p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
-                B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
-                t_r = t_r.0, t_s = 0.5, th = th.0, h = h.0, # moderately effective treatment
-                F_f = F_f.0, F_w = F_w.0, 
-                r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
-                M_out = M_out.0, M_in = M_in.0)
   
   resist_cost_select <- foreach(i=1:dim(cost_select)[1], .packages="deSolve") %dopar% {
     
+    t_s.0 = 0.7 # using fixed set up for efficacy
     t_r.0 = t_s.0*cost_select$select[i] 
     l_r.0 = l_s.0*cost_select$cost[i] 
     
     Pars = base_pars
+    Pars['t_s'] <- t_s.0
     Pars['t_r'] <- t_r.0
     Pars['l_r'] <- l_r.0
     
-    th.0 = 0.75
+    th.0 = 0.7 # moderate values, in base case, produces resistance between 0.75-0.9ish
     
     # redefine root & event with correct threshold and effecitivity
     rootfunc <- function(Time, y, Pars) {return (y[1] + y[2] - th.0*F_f.0)} # threshold hit
@@ -391,12 +389,15 @@ stopCluster(cl)
   cost_select$value <- unlist(resist_cost_select)
 }
 
+bio_trade_out <- list(base_pars, cost_select)
+save(bio_trade_out, file = "simulated data/bio_trade_out.Rdata")
+
 # make figures
 {fig6 <- ggplot(cost_select, aes(cost, select, fill = value)) + 
     geom_tile(aes(height = 0.011, width = 0.011)) + 
-    scale_fill_viridis(direction = -1, limits = c(0.7, 1)) +  theme_classic() + 
+    scale_fill_viridis(direction = -1, limits = c(0.3, 1)) +  theme_classic() + 
     geom_point(data = cost_select %>% filter(select == 0.5 & cost == 0.9), col = "white", pch = 8) + 
-    theme(# legend.position = "bottom",
+    theme(legend.position = "bottom",
           legend.title = element_text(size = 7), 
           legend.text = element_text(size = 7), 
           axis.title = element_text(size = 7), 
@@ -424,4 +425,8 @@ dev.off()
 
 png("plots/frontiers.png",height=80,width=170,res=400,units='mm')
 print(fig5)
+dev.off()
+
+png("plots/bio_tradeoff.png",height=80,width=85,res=400,units='mm')
+print(fig6)
 dev.off()
