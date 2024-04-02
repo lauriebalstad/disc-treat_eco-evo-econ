@@ -1,0 +1,26 @@
+{
+    "id": "EF90DF11",
+    "path": "~/R files past/lice_resist_discont.Rmd",
+    "project_path": null,
+    "type": "r_markdown",
+    "hash": "2116995361",
+    "contents": "",
+    "dirty": false,
+    "created": 1710279829848.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "11,14",
+        "scrollLine": "0"
+    },
+    "folds": "115|41|145|0|\n147|38|151|0|\n",
+    "lastKnownWriteTime": 1691450726,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1710280108031,
+    "read_only": false,
+    "read_only_alternatives": []
+}

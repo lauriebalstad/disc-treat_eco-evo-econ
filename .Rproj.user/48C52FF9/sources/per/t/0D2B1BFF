@@ -1,0 +1,26 @@
+{
+    "id": "0D2B1BFF",
+    "path": "~/GitHub/disc-treat_eco-evo-econ/base_parameters.R",
+    "project_path": "base_parameters.R",
+    "type": "r_source",
+    "hash": "2484575715",
+    "contents": "",
+    "dirty": false,
+    "created": 1710279806942.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "25,12",
+        "scrollLine": "20"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1712082454,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1712082454282,
+    "read_only": false,
+    "read_only_alternatives": []
+}
