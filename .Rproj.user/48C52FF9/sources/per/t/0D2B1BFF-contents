@@ -1,94 +1,87 @@
-l_s.0 = 6.35; c_s.0 = 1/5 
-l_r.0 = l_s.0*0.95; c_r.0 = c_s.0 # similar to Murray values: l_s.0*0.98
-u_s.0 = 1/60
-u_r.0 = u_s.0 # Bateman et al modifies resistant lice here
-m.0 = 0.0025 # to modify equilibrium values, basically the competition
-mb.0 = 0.01 # 1?? 0.2?? m.0?
+#----system-specific pars----
+# lice bio
+l_s.0 = 6.35; l_r.0 = l_s.0*0.95 # lice reproduction -- note cost to resistence
+v_s.0 = 1/5; v_r.0 = v_s.0 # juv. lice mortality
+u_s.0 = 1/60; u_r.0 = u_s.0 # adult lice mortality
+t_d.0 = 0.001; t_w.0 = 0.01 # density dep. on adult fish
 
-p_ff.0 = 0.9 # low-ish connectivity case (p_ff.0 close to 1) 
-p_ll.0 = p_ff.0 # lice in farm stay on farm...
-p_fl.0 = 1-p_ff.0 # ...or jump to wild (spillover)
-p_lf.0 = p_fl.0 # spillback rate
+# connectivity & attachement
+p_dd.0 = 0.9 # stay on farm
+p_ll.0 = p_dd.0 # stay in link
+p_dl.0 = 1-p_dd.0 # spillover
+p_ld.0 = p_dl.0 # spillback
 p_ww.0 = 1 # all lice in wild stay in that environment, movement to link environment via migration
-B_f.0 = 5.9*10^-10/1.3 # all the lice attach type vibe -- very approximate
-B_l.0 = B_f.0*0.75 # slightly lower in the link population -- bateman vibe
-B_w.0 = B_f.0*0.25 # lowest in wild
+B_d.0 = 5.9*10^-10/1.3 # farm lice attachement
+B_l.0 = B_d.0*0.75 # link lice attachement slightly lower in the link population -- bateman vibe
+B_w.0 = B_d.0*0.25 # wild lice attachement -- bateman vibe
 
-Tr.0 = 10 # just to start
-t_s.0 = 0.9 # 90% effective
-t_r.0 = t_s.0*0.5 # resistant lice have 75% advantage
-b.0 = 1000
-th.0 = 0 # Murray/Bateman: continous treatment
-h.0 = 0.67/365
+# treatment
+ep_s.0 = 0.9 # suseptible lice effecivity
+ep_r.0 = ep_s.0*0.5 # resistant lice effectivity
 
-F_f.0 = 6*10^6 # normalize farm fish population size --> might need to be closer to 2e6?? for about a single farm v. whole network
-F_w.0 = 20*F_f.0
-r.0 = 3*10^2
-v.0 = 2*10^2 
-X.0 = 0.02
-u_f.0 = 0 # no wild fish death
-M_out.0 = 1/(0.25*365)
-Y.0 = M_out.0
-M_in.0 = 1/(1.25*365)
-sig.0 = 1/(0.25*365)
-
-pT.0 = 10
-pQ.0 = 2
+# host things
+Z.0 = 0.67/365 # harvest
+F_d.0 = 6*10^6 # normalize farm fish population size --> might need to be closer to 2e6?? for about a single farm v. whole network
+F_w.0 = 20*F_d.0
+n_N1.0 = 3*10^2
+n_N2.0 = 2*10^2 
+alp.0 = 0.02
+z_w.0 = 0.005 # between harvest and juvenile salmon death
+T_out.0 = 1/(0.25*365)
+z_j.0 = T_out.0
+T_in.0 = 1/(1.25*365)
+z_n.0 = 1/(0.25*365)
 
 n = 365*5 # for daily pars --> 10 years
 Time = seq(0, n, length.out = n+1)
 
-approx_pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
-              u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
-              p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
-              B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
-              t_r = t_r.0, t_s = t_s.0, th = th.0, h = h.0,
-              F_f = F_f.0, F_w = F_w.0, 
-              r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
-              M_out = M_out.0, M_in = M_in.0)
+approx_pars = c(l_s = l_s.0, v_s = v_s.0, l_r = l_r.0, v_r = v_r.0, 
+              u_s = u_s.0, u_r = u_r.0, t_d = t_d.0, t_w = t_w.0,
+              p_dd = p_dd.0, p_ll = p_ll.0, p_dl = p_dl.0, p_ld = p_ld.0, p_ww = p_ww.0, 
+              B_d = B_d.0, B_l = B_l.0, B_w = B_w.0,
+              ep_r = ep_r.0, ep_s = ep_s.0, Z = Z.0,
+              F_d = F_d.0, F_w = F_w.0, 
+              n_N1 = n_N1.0, n_N2 = n_N2.0, alp = alp.0, z_j = z_j.0, z_w = z_w.0, z_n = z_n.0,
+              T_out = T_out.0, T_in = T_in.0)
 
-###########################################################
+#----generic pars----
+l_s.0 = 1; l_r.0 = 0.95*l_s.0
+v_s.0 = 1 ; v_r.0 = v_s.0 
+u_s.0 = .1; u_r.0 = .1 
+t_d.0 = 0.15; t_w.0 = 0.15
 
-l_s.0 = 1; c_s.0 = 1 # l_s.0 = 1
-# l_r.0 = 1; c_r.0 = 1
-l_r.0 = 0.95*l_s.0; c_r.0 = 1 # similar to Murray values
-u_s.0 = .1
-u_r.0 = .1 # Bateman et al modifies resistant lice here
-m.0 = 1; mb.0 = 1
-
-p_ff.0 = 0.95 # low connectivity case (p_ff.0 close to 1)
-p_ll.0 = p_ff.0 # lice in farm stay on farm...
-p_fl.0 = 1-p_ff.0 # ...or jump to wild (spillover)
-p_lf.0 = p_fl.0 # spillback rate
+p_dd.0 = 0.9 # low connectivity case (p_dd.0 close to 1)
+p_ll.0 = p_dd.0 # lice in farm stay on farm...
+p_dl.0 = 1-p_dd.0 # ...or jump to wild (spillover)
+p_ld.0 = p_dl.0 # spillback rate
 p_ww.0 = 1 # all lice in wild stay in that environment
-B_f.0 = 1 # all the lice attach type vibe
+B_d.0 = 1 # all the lice attach type vibe
 B_l.0 = 0.75 # slightly lower in the link population -- bateman vibe
 B_w.0 = 0.25 # lowest in wild
 
-t_s.0 = 0.9
-t_r.0 = t_s.0*0.1 # similar to Murray
-th.0 = 10 # Murray/Bateman: continous treatment
-h.0 = 0.1
+ep_s.0 = 0.9
+ep_r.0 = ep_s.0*0.05 # similar to Murray
 
-F_f.0 = 1 # normalize farm fish population size
+Z.0 = 0.2
+F_d.0 = 1 # normalize farm fish population size
 F_w.0 = 5 # I think this is right?
-r.0 = 1.5
-v.0 = 1
-X.0 = 0.4 # parasite induced mortality
-Y.0 = 0.1 # 0.1
-u_f.0 = 0
-M_out.0 = 0.2
-M_in.0 = 0.1
-sig.0 = 0.5
+n_N1.0 = 1
+n_N2.0 = 1
+alp.0 = 0.4 # parasite induced mortality
+z_j.0 = 0.1 # 0.1
+z_w.0 = 0.1
+T_out.0 = 0.2
+T_in.0 = 0.1
+z_n.0 = 0.5
 
 n = 365 
 Time = seq(0, 5*n, length.out = 5*n+1)
 
-base_pars = c(l_s = l_s.0, c_s = c_s.0, l_r = l_r.0, c_r = c_r.0, 
-         u_s = u_s.0, u_r = u_r.0, m = m.0, mb = mb.0,
-         p_ff = p_ff.0, p_ll = p_ll.0, p_fl = p_fl.0, p_lf = p_lf.0, p_ww = p_ww.0, 
-         B_f = B_f.0, B_l = B_l.0, B_w = B_w.0,
-         t_r = t_r.0, t_s = t_s.0, th = th.0, h = h.0,
-         F_f = F_f.0, F_w = F_w.0, 
-         r = r.0, v = v.0, X = X.0, Y = Y.0, u_f = u_f.0, sig = sig.0,
-         M_out = M_out.0, M_in = M_in.0)
+base_pars = c(l_s = l_s.0, v_s = v_s.0, l_r = l_r.0, v_r = v_r.0, 
+         u_s = u_s.0, u_r = u_r.0, t_d = t_d.0, t_w = t_w.0,
+         p_dd = p_dd.0, p_ll = p_ll.0, p_dl = p_dl.0, p_ld = p_ld.0, p_ww = p_ww.0, 
+         B_d = B_d.0, B_l = B_l.0, B_w = B_w.0,
+         ep_r = ep_r.0, ep_s = ep_s.0, Z = Z.0,
+         F_d = F_d.0, F_w = F_w.0, 
+         n_N1 = n_N1.0, n_N2 = n_N2.0, alp = alp.0, z_j = z_j.0, z_w = z_w.0, z_n = z_n.0,
+         T_out = T_out.0, T_in = T_in.0)

@@ -28,8 +28,8 @@
      inkscape:document-units="mm"
      showgrid="false"
      inkscape:zoom="0.85484976"
-     inkscape:cx="536.93645"
-     inkscape:cy="262.03435"
+     inkscape:cx="539.27605"
+     inkscape:cy="327.54294"
      inkscape:window-width="1920"
      inkscape:window-height="1094"
      inkscape:window-x="-11"
@@ -237,7 +237,7 @@
        id="text6571"><tspan
          sodipodi:role="line"
          id="tspan6569"
-         style="stroke-width:0;stroke-dasharray:0, 0;stroke-dashoffset:0;fill:#ffffff;fill-opacity:1"></tspan></text><text
+         style="stroke-width:0;stroke-dasharray:0, 0;stroke-dashoffset:0;fill:#ffffff;fill-opacity:1" /></text><text
        xml:space="preserve"
        style="font-size:10.5833px;font-family:Arial;-inkscape-font-specification:Arial;text-align:center;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:#b8b8b8;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="277.89627"
@@ -297,7 +297,7 @@
          x="377.00787"
          y="347.01746">F<tspan
    style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.77333px;font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math';baseline-shift:sub"
-   id="tspan6835-5-7">S</tspan></tspan></text><text
+   id="tspan6835-5-7">N</tspan></tspan></text><text
        xml:space="preserve"
        style="font-size:10.5833px;font-family:Arial;-inkscape-font-specification:Arial;text-align:center;text-anchor:middle;white-space:pre;inline-size:15.6004;fill:#000000;fill-opacity:1;stroke:#b8b8b8;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="311.47174"
@@ -306,11 +306,11 @@
        transform="translate(-3.1750001,0.52916667)"><tspan
          x="311.47174"
          y="260.29013"
-         id="tspan10329"><tspan
+         id="tspan648"><tspan
            style="font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math'"
-           id="tspan10325">P</tspan><tspan
+           id="tspan644">P</tspan><tspan
            style="font-size:6.77333px;font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math';baseline-shift:sub"
-           id="tspan10327">D</tspan></tspan></text><text
+           id="tspan646">iD</tspan></tspan></text><text
        xml:space="preserve"
        style="font-size:10.5833px;font-family:Arial;-inkscape-font-specification:Arial;text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:#b8b8b8;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="357.50854"
@@ -322,7 +322,7 @@
          x="357.50854"
          y="260.81924">P<tspan
    style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.77333px;font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math';baseline-shift:sub;fill:#000000;fill-opacity:1"
-   id="tspan6835-1-8">L</tspan></tspan></text><text
+   id="tspan6835-1-8">iL</tspan></tspan></text><text
        xml:space="preserve"
        style="font-size:10.5833px;font-family:Arial;-inkscape-font-specification:Arial;text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:#b8b8b8;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="461.56491"
@@ -334,7 +334,7 @@
          x="461.56491"
          y="289.04745">P<tspan
    style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.77333px;font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math';baseline-shift:sub;fill:#000000;fill-opacity:1"
-   id="tspan6835-1-8-26">A</tspan></tspan></text><text
+   id="tspan6835-1-8-26">iA</tspan></tspan></text><text
        xml:space="preserve"
        style="font-size:10.5833px;font-family:Arial;-inkscape-font-specification:Arial;text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:#b8b8b8;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="512.55878"
@@ -346,7 +346,7 @@
          x="512.55878"
          y="289.04724">P<tspan
    style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.77333px;font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math';baseline-shift:sub;fill:#000000;fill-opacity:1"
-   id="tspan6835-1-8-26-9">W</tspan></tspan></text><text
+   id="tspan6835-1-8-26-9">iW</tspan></tspan></text><text
        xml:space="preserve"
        style="font-size:10.5833px;font-family:Arial;-inkscape-font-specification:Arial;text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:#b8b8b8;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="357.50839"
@@ -358,7 +358,7 @@
          x="357.50839"
          y="330.00937">P<tspan
    style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.77333px;font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math';baseline-shift:sub;fill:#000000;fill-opacity:1"
-   id="tspan6835-1-8-2">S</tspan></tspan></text><g
+   id="tspan6835-1-8-2">iN</tspan></tspan></text><g
        id="g8147"
        transform="translate(0.66891043,4.1933763)"><path
          style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.498966;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
@@ -426,7 +426,9 @@
            style="font-size:5.64444px;fill:#a6a6a6;fill-opacity:1;stroke:#a6a6a6;stroke-width:0;stroke-opacity:1"
            x="-335.44199"
            y="321.9527"
-           id="tspan8087">efficacy, ε</tspan></text><text
+           id="tspan8087">efficacy, ε<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan528">i</tspan></tspan></text><text
          xml:space="preserve"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444px;font-family:'Cambria Math';-inkscape-font-specification:'Cambria Math';text-align:center;text-anchor:middle;fill:#a6a6a6;fill-opacity:1;stroke:#a6a6a6;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          x="283.95163"
@@ -522,7 +524,7 @@
          x="415.92014"
          y="255.27173"><tspan
            style="font-size:10.5833px"
-           id="tspan10027">m</tspan><tspan
+           id="tspan10027">τ</tspan><tspan
            style="font-size:65%;baseline-shift:sub"
            id="tspan10025">out</tspan></tspan></text><text
        xml:space="preserve"
@@ -534,6 +536,6 @@
          id="tspan10029"
          style="stroke-width:0"
          x="421.89258"
-         y="361.7738">m<tspan
+         y="361.7738">τ<tspan
    style="font-size:7.05556px;baseline-shift:sub"
    id="tspan10033">in</tspan></tspan></text></g></svg>
