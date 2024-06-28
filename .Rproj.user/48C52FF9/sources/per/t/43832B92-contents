@@ -113,17 +113,18 @@ outcomes_ecol_econ <- function(noLink) {
 
 # make list of economic things
 econ_outs <- list(base_pars, outcome_vals, econ_dat, econ_long)
-# save(econ_outs, file = "simulated data/econ_outs.Rdata")
+save(econ_outs, file = "simulated data/econ_outs.Rdata")
 
 # make figures
 {no_treat_loss <- econ_long$value[which(econ_long$Threshold == max(econ_long$Threshold))[1]]
-  fig2 <- ggplot(econ_long, aes(Threshold, (value), col = as.factor(Treat_Int))) + 
-    geom_hline(aes(yintercept = (no_treat_loss)), lty = 2, col = "gray") + 
-    geom_point(size = 1.4) + # geom_line() +
+  fig2 <- ggplot(econ_long, aes(Threshold, (value), fill = as.factor(Treat_Int), shape = as.factor(Treat_Int))) + 
+    geom_hline(aes(yintercept = (no_treat_loss)), lty = 2, col = "gray80") + 
+    geom_point(size = 2.6) + # geom_line() +
+    scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) + 
     facet_wrap(~name, nrow = 2)  + #, scale = "free_y") +
-    scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
+    scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  theme_classic() + 
     coord_cartesian(ylim = c(0, 1)) + 
-    theme(legend.position = "bottom",
+    theme(legend.position = "none",
           legend.title = element_text(size = 10), 
           legend.text = element_text(size = 10), 
           axis.title = element_text(size = 10), 
@@ -148,13 +149,14 @@ fig2
 }
 
 ecol_outs <- list(base_pars, outcome_vals, link_size)
-# save(ecol_outs, file = "simulated data/ecol_outs.Rdata")
+save(ecol_outs, file = "simulated data/ecol_outs.Rdata")
 
 # make figures
-{fig3 <- ggplot(link_size, aes(Threshold, standard, col = as.factor(Treat_Int))) + 
-    geom_point(size = 1.4) + 
-    scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
-    theme(legend.position = c(0.85, 0.7),
+{fig3 <- ggplot(link_size, aes(Threshold, standard, fill = as.factor(Treat_Int), shape = as.factor(Treat_Int))) + 
+    geom_point(size = 2.6) + 
+    scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) + 
+    scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  theme_classic() + 
+    theme(legend.position = "none",
           legend.title = element_text(size = 10), 
           legend.text = element_text(size = 10), 
           axis.title = element_text(size = 10), 
@@ -243,7 +245,7 @@ evol_dat$value <- unlist(resist_percent_list)
 }
 
 evol_outs <- list(base_pars, evol_dat)
-# save(evol_outs, file = "simulated data/evol_outs.Rdata")
+save(evol_outs, file = "simulated data/evol_outs.Rdata")
 
 base_par_range <- evol_dat %>% filter(type == "Base parameters") %>% select(-type) %>% 
   pivot_wider(names_from = treat_eff, values_from = value) %>% 
@@ -253,18 +255,20 @@ colnames(base_par_range) <- c("thresh_val", "lower", "upper")
 # make figures
 {fig4 <- ggplot(data = evol_dat) + 
     geom_linerange(data = base_par_range,
-                   aes(x = thresh_val, ymin = lower, ymax = upper), size = 1.4, col = "gray") + 
-    geom_point(aes(thresh_val, value, col = as.factor(treat_eff)), size = 1.4) + 
+                   aes(x = thresh_val, ymin = lower, ymax = upper), size = 1.7, col = "gray80") + 
+    geom_point(aes(thresh_val, value, fill = as.factor(treat_eff), shape = as.factor(treat_eff)), size = 2.6) + 
+    scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) + 
     facet_wrap(~type, nrow=2) +
     coord_cartesian(ylim = c(0, 1)) +
-    scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
+    scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  
+    theme_classic() + 
     theme(legend.position = "bottom",
           legend.title = element_text(size = 10), 
           legend.text = element_text(size = 10), 
           axis.title = element_text(size = 10), 
           axis.text = element_text(size = 10), 
           strip.text = element_text(size = 10)) +
-    labs(x = "Treatment threshold", y = "Proportion resistant", col = "Treatment efficacy") 
+    labs(x = "Treatment threshold", y = "Proportion resistant", fill = "Treatment efficacy", shape = NULL) 
 }
 
 fig4 # has some more efficacy options
@@ -281,15 +285,16 @@ fronts <- merge(tmp, tmp2, by = c("treat_eff", "thresh_val"))
 }
 
 # need to add lines
-{ecol_econ <- ggplot(fronts, aes(ecol, -econ, col = as.factor(treat_eff))) + 
+{ecol_econ <- ggplot(fronts, aes(ecol, -econ, fill = as.factor(treat_eff), shape= as.factor(treat_eff))) + 
     # line across threshold options
     geom_path(aes(group = as.factor(thresh_val)), col = "gray80", lty = "dashed") + 
     # line across fronters
     geom_path(data = fronts[c(25:19, 10, 1), ], 
               col = "gray45") + 
     guides(lty = "none") + 
-    geom_point(size = 1.4) + 
-    scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
+    scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) +
+    geom_point(size = 1.8) + 
+    scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  theme_classic() + 
   theme(legend.title = element_text(size = 10), 
         legend.text = element_text(size = 10), 
         axis.title = element_text(size = 10), 
@@ -301,10 +306,11 @@ evol_econ <- ggplot(fronts, # %>% filter(thresh_val %in% M.vec[c(1, 3, 5, 7, 9, 
   # line across threshold options
   geom_path(aes(group = as.factor(thresh_val)), col = "gray80", lty = "dashed") + 
   # line across fronters 
-  geom_line(data = fronts[c(21, 22, 23, 24, 15, 6, 8, 19, 10, 1), ], 
+  geom_line(data = fronts[c(21, 22, 23, 24, 15, 6), ], 
             col = "gray45") + 
-  geom_point(size = 1.4, aes(col = as.factor(treat_eff))) + 
-  scale_color_viridis(discrete = T, direction = -1) +  
+  geom_point(size = 1.8, aes(fill = as.factor(treat_eff), shape= as.factor(treat_eff))) + 
+  scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) +
+  scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  
   # scale_linetype_manual(values=c("1F", "dotted", "dotdash", "dashed")) + 
   theme_classic() + # adding threshold labels manually
   theme(legend.title = element_text(size = 10), 
@@ -314,14 +320,15 @@ evol_econ <- ggplot(fronts, # %>% filter(thresh_val %in% M.vec[c(1, 3, 5, 7, 9, 
         legend.position="none") +
   labs(x = "Neg. prop. resist.", y = "Neg. economic costs", col = "Treatment \nefficacy") #, lty = "Treatment \nthreshold") 
 # look at with threshold values??
-ecol_evol <- ggplot(fronts, aes(ecol, -evol, col = as.factor(treat_eff))) + 
+ecol_evol <- ggplot(fronts, aes(ecol, -evol, fill = as.factor(treat_eff), shape= as.factor(treat_eff))) + 
   # line across threshold options
   geom_path(aes(group = as.factor(thresh_val)), col = "gray80", lty = "dashed") + 
   # line across fronters
   geom_line(data = fronts[c(1:9, 16), ], 
             col = "gray45") + 
-  geom_point(size = 1.4) + guides(lty = "none") + 
-  scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
+  scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) +
+  geom_point(size = 1.8) + guides(lty = "none") + 
+  scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  theme_classic() + 
   theme(legend.title = element_text(size = 10), 
         legend.text = element_text(size = 10), 
         axis.title = element_text(size = 10), 
@@ -330,10 +337,10 @@ ecol_evol <- ggplot(fronts, aes(ecol, -evol, col = as.factor(treat_eff))) +
   labs(x = "Juv. salmon pop. size", y = "Neg. prop. resist.", col = "Treatment \nefficacy") 
 }
 
-leg <- get_legend(ecol_evol + 
-                    guides(color = guide_legend(nrow = 1)) +
-                    theme(legend.position = "bottom", 
-                          legend.box = "horizontal"))
+# leg <- get_legend(ecol_evol + 
+#                     guides(color = guide_legend(nrow = 1)) +
+#                     theme(legend.position = "bottom", 
+#                           legend.box = "horizontal"))
 plts_fig5 <- plot_grid(ecol_econ + theme(legend.position = "none"), 
                   ecol_evol + theme(legend.position = "none"),
                   evol_econ + theme(legend.position = "none"),
@@ -410,21 +417,20 @@ stopCluster(cl)
 }
 
 bio_trade_out <- list(base_pars, cost_select)
-# save(bio_trade_out, file = "simulated data/bio_trade_out.Rdata")
+save(bio_trade_out, file = "simulated data/bio_trade_out.Rdata")
 
 # make figures
 {fig6 <- ggplot(cost_select, aes(cost, select, col = value)) + 
     geom_point(size = 3) +    
-    scale_color_viridis(direction = -1, limits = c(0.75, 1), breaks = c(0.75, 0.875, 1)) +  
+    scale_color_viridis(direction = -1, limits = c(0.75, 1), breaks = c(0.75, 0.875, 1), option = "inferno") +  
     theme_classic() + 
     geom_point(data = data.frame(select = 0.05, cost = 0.95), col = "black", size = 5, pch = 1) + 
-    theme(legend.position = "right",
-          legend.title = element_text(size = 5), 
-          legend.text = element_text(size = 5), 
-          axis.title = element_text(size = 7), 
-          axis.text = element_text(size = 7), 
-          legend.key.size = unit(0.35, 'cm')) +
-    labs(x = "Resistance cost", y = "Resistance benefit", col = "Prop. \nResistant") 
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 10), 
+          legend.text = element_text(size = 10), 
+          axis.title = element_text(size = 10), 
+          axis.text = element_text(size = 10)) +
+    labs(x = "Resistance cost", y = "Resistance benefit", col = NULL) 
 }
 
 fig6 # has some more efficacy options
@@ -441,7 +447,7 @@ doParallel::registerDoParallel(cl)
 {ep.vec <- seq(from = 0.3, to = 0.9, length.out = 3) # treatment effect --> might be interesting to also do with wild fish to see how threshold & wild fish interact
   M.vec <- seq(from = 0.01, to = 60.01, length.out = 11) # threshold
   TR_TH <- expand.grid(treat_eff = ep.vec, thresh_val = M.vec)
-
+  
   # think about how to prep the foreach loop --> check how you did it in the evo rescue files?
   
   approx_pars_out <- foreach(i=1:dim(TR_TH)[1], .packages="deSolve", .combine="rbind") %dopar% {
@@ -451,7 +457,7 @@ doParallel::registerDoParallel(cl)
     
     Pars = approx_pars
     Pars['ep_s'] <- ep_s.0; Pars['ep_r'] <- ep_r.0
-
+    
     M.0 = TR_TH$thresh_val[i]
     F_d.0 = Pars['F_d']
     F_w.0 = Pars['F_w']
@@ -468,9 +474,9 @@ doParallel::registerDoParallel(cl)
     out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
     # then take output from out and use to start new simulation state
     State = out[dim(out)[1], 2:2:dim(out)[2]]; State["L_sd"] = State["L_sd"]-0.001; State["L_rd"] = 0.001 # can just replace a suseptable louse with a resistant louse
-    Time_invade = seq(0, 5*n-31, length.out = 5*n-30)
+    Time_invade = seq(0, 5*n-91, length.out = 5*n-90)
     out <- ode(Time_invade, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
-    Time_outs = seq(0, 30, length.out = 31) # simulate just last month
+    Time_outs = seq(0, 90, length.out = 91) # simulate just last month
     State = out[dim(out)[1], 2:dim(out)[2]]
     out <- ode(Time_outs, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE, maxroots = 20000))
     
@@ -491,34 +497,35 @@ stopCluster(cl)
 # manipulate dataframes
 {
   approx_out <- cbind(TR_TH, unlist(approx_pars_out[,1]), 
-                             unlist(approx_pars_out[,2]), 
-                             unlist(approx_pars_out[,3]), 
-                             unlist(approx_pars_out[,4]))
+                      unlist(approx_pars_out[,2]), 
+                      unlist(approx_pars_out[,3]), 
+                      unlist(approx_pars_out[,4]))
   colnames(approx_out) <- c(colnames(TR_TH), "Proportion resistant", "Link population size", "num_treat", "burd_farm")
   approx_out$`Economic losses` <- 2.5*approx_out$num_treat + 0.1*approx_out$burd_farm
-  approx_out$`Econ. losses \n(standardized)` <- approx_out$`Economic losses`/max(approx_out$`Economic losses`)
-  approx_out$`Juv. salmon pop. size \n(standardized)` <- approx_out$`Link population size`/max(approx_out$`Link population size`)
+  approx_out$`Econ. losses \n(standardized)` <- approx_out$`Economic losses`/max(approx_out$`Economic losses`, approx_out_zoom$`Economic losses`)
+  approx_out$`Juv. salmon pop. size \n(standardized)` <- approx_out$`Link population size`/max(approx_out$`Link population size`, approx_out_zoom$`Link population size`)
   approx_out_long <- pivot_longer(approx_out[, c(1:3, 8:9)], cols = 3:5, names_to = "output_type")
 }
 
 approx_outputs <- list(approx_pars, approx_out, approx_out_long)
-# save(approx_outputs, file = "simulated data/approx_outputs.Rdata")
+save(approx_outputs, file = "simulated data/approx_outputs.Rdata")
 
-# make figures
-{fig7 <- ggplot(data = approx_out_long) + 
-    geom_point(aes(thresh_val, value, col = as.factor(treat_eff)), size = 1.4) + 
-    facet_wrap(~output_type, nrow=1, scale = "free_y") +
-    scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
-    theme(legend.title = element_text(size = 10), 
-          legend.text = element_text(size = 10), 
-          axis.title = element_text(size = 10), 
-          axis.text = element_text(size = 10), 
-          strip.text = element_text(size = 10), 
-          legend.position = "bottom") +
-    labs(x = "Treatment threshold", y = NULL, col = "Treatment efficacy") 
-}
-
-fig7 # has some more efficacy options
+# # make figures
+# {fig7 <- ggplot(data = approx_out_long) + 
+#     annotate("rect", xmin = 0, xmax = 4, ymin = 0, ymax = 1, fill = "gray90") + 
+#     geom_point(aes(thresh_val, value, col = as.factor(treat_eff)), size = 1.4) + 
+#     facet_wrap(~output_type, nrow=1, scale = "free_y") +
+#     scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
+#     theme(legend.title = element_text(size = 10), 
+#           legend.text = element_text(size = 10), 
+#           axis.title = element_text(size = 10), 
+#           axis.text = element_text(size = 10), 
+#           strip.text = element_text(size = 10), 
+#           legend.position = "bottom") +
+#     labs(x = "Treatment threshold", y = NULL, col = "Treatment efficacy") 
+# }
+# 
+# fig7 # has some more efficacy options
 
 #----figure 8: zoom on real-ish parameters----
 
@@ -530,12 +537,12 @@ doParallel::registerDoParallel(cl)
 
 # set up & make function
 {ep.vec <- seq(from = 0.3, to = 0.9, length.out = 3) # treatment effect --> might be interesting to also do with wild fish to see how threshold & wild fish interact
-  M.vec <- seq(from = 0.01, to = 4.01, length.out = 21) # threshold
+  M.vec <- seq(from = 0.01, to = 4.01, length.out = 11) # threshold
   TR_TH <- expand.grid(treat_eff = ep.vec, thresh_val = M.vec)
   
   # think about how to prep the foreach loop --> check how you did it in the evo rescue files?
   
-  approx_pars_out <- foreach(i=1:dim(TR_TH)[1], .packages="deSolve", .combine="rbind") %dopar% {
+  approx_pars_out_zoom <- foreach(i=1:dim(TR_TH)[1], .packages="deSolve", .combine="rbind") %dopar% {
     
     ep_s.0 = TR_TH$treat_eff[i]
     ep_r.0 = ep_s.0*0.5 # make 25% of ep_s
@@ -559,9 +566,9 @@ doParallel::registerDoParallel(cl)
     out <- ode(Time, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
     # then take output from out and use to start new simulation state
     State = out[dim(out)[1], 2:2:dim(out)[2]]; State["L_sd"] = State["L_sd"]-0.001; State["L_rd"] = 0.001 # can just replace a suseptable louse with a resistant louse
-    Time_invade = seq(0, 5*n-31, length.out = 5*n-30)
+    Time_invade = seq(0, 5*n-91, length.out = 5*n-90)
     out <- ode(Time_invade, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE))
-    Time_outs = seq(0, 30, length.out = 31) # simulate just last month
+    Time_outs = seq(0, 90, length.out = 91) # simulate just last month
     State = out[dim(out)[1], 2:dim(out)[2]]
     out <- ode(Time_outs, y = State, func = systemTREAT, parms = Pars, rootfun = rootfunc, events = list(func = eventfunc, root = TRUE, maxroots = 20000))
     
@@ -581,19 +588,19 @@ stopCluster(cl)
 
 # manipulate dataframes
 {
-  approx_out_zoom <- cbind(TR_TH, unlist(approx_pars_out[,1]), 
-                      unlist(approx_pars_out[,2]), 
-                      unlist(approx_pars_out[,3]), 
-                      unlist(approx_pars_out[,4]))
+  approx_out_zoom <- cbind(TR_TH, unlist(approx_pars_out_zoom[,1]), 
+                      unlist(approx_pars_out_zoom[,2]), 
+                      unlist(approx_pars_out_zoom[,3]), 
+                      unlist(approx_pars_out_zoom[,4]))
   colnames(approx_out_zoom) <- c(colnames(TR_TH), "Proportion resistant", "Link population size", "num_treat", "burd_farm")
   approx_out_zoom$`Economic losses` <- 2.5*approx_out_zoom$num_treat + 0.1*approx_out_zoom$burd_farm
-  approx_out_zoom$`Econ. losses \n(standardized)` <- approx_out_zoom$`Economic losses`/max(approx_out$`Economic losses`)
-  approx_out_zoom$`Juv. salmon pop. size \n(standardized)` <- approx_out_zoom$`Link population size`/max(approx_out$`Link population size`)
+  approx_out_zoom$`Econ. losses \n(standardized)` <- approx_out_zoom$`Economic losses`/max(approx_out$`Economic losses`, approx_out_zoom$`Economic losses`)
+  approx_out_zoom$`Juv. salmon pop. size \n(standardized)` <- approx_out_zoom$`Link population size`/max(approx_out$`Link population size`, approx_out_zoom$`Link population size`)
   approx_out_zoom_long <- pivot_longer(approx_out_zoom[, c(1:3, 8:9)], cols = 3:5, names_to = "output_type")
 }
 
 approx_outputs_zoom <- list(approx_pars, approx_out_zoom, approx_out_zoom_long)
-# save(approx_outputs_zoom, file = "simulated data/approx_outputs.Rdata")
+save(approx_outputs_zoom, file = "simulated data/approx_outputs_zoom.Rdata")
 
 approx_out_long$scale <- rep("out")
 approx_out_zoom_long$scale <- rep("in")
@@ -601,29 +608,33 @@ approx_both <- rbind(approx_out_long, approx_out_zoom_long)
 
 # make figures
 {fig8a <- ggplot(data = approx_out_zoom_long) + 
-    geom_point(aes(thresh_val, value, col = as.factor(treat_eff)), size = 1.4) + 
+    annotate("rect", xmin = 0, xmax = 4, ymin = 0, ymax = 1, fill = "gray80") + 
+    geom_point(aes(thresh_val, value, fill = as.factor(treat_eff), shape= as.factor(treat_eff)), size = 2.1) + 
     facet_wrap(~output_type) + coord_cartesian(ylim = c(0, 1)) + 
-    scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
+    scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) +
+    scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  theme_classic() + 
     theme(legend.title = element_text(size = 10), 
           legend.text = element_text(size = 10), 
           axis.title = element_text(size = 10), 
           axis.text = element_text(size = 10), 
           strip.text = element_text(size = 10), 
           legend.position = "none") +
-    labs(x = NULL, y = NULL, col = "Treatment efficacy") 
+    labs(x = NULL, y = NULL, fill = "Treatment efficacy") 
 }
 
 {fig8b <- ggplot(data = approx_out_long) + 
-    geom_point(aes(thresh_val, value, col = as.factor(treat_eff)), size = 1.4) + 
+    annotate("rect", xmin = 0, xmax = 4, ymin = 0, ymax = 1, fill = "gray80") + 
+    geom_point(aes(thresh_val, value, fill = as.factor(treat_eff), shape= as.factor(treat_eff)), size = 2.1) + 
     facet_wrap(~output_type) + coord_cartesian(ylim = c(0, 1)) +
-    scale_color_viridis(discrete = T, direction = -1) +  theme_classic() + 
+    scale_shape_manual(name = "Treatment effectivity", values = c(24, 23, 21)) +
+    scale_fill_viridis(name = "Treatment effectivity", discrete = T, direction = -1, option = "inferno") +  theme_classic() + 
     theme(legend.title = element_text(size = 10), 
           legend.text = element_text(size = 10), 
           strip.text = element_blank(),
           axis.title = element_text(size = 10), 
           axis.text = element_text(size = 10), 
           legend.position = "bottom") +
-    labs(x = "Treatment threshold", y = NULL, col = "Treatment efficacy") 
+    labs(x = "Treatment threshold", y = NULL, fill = "Treatment efficacy") 
 }
 
 fig8 <- plot_grid(fig8a, fig8b, ncol = 1, rel_heights = c(1, 1.1))
@@ -632,7 +643,7 @@ fig8 # has some more efficacy options
 
 #----print figures----
 
-png("plots/economic_outcomes.png",height=170,width=85,res=400,units='mm')
+png("plots/economic_outcomes.png",height=160,width=85,res=400,units='mm')
 print(fig2)
 dev.off()
 
@@ -644,17 +655,17 @@ png("plots/evolution_outcomes.png",height=180,width=170,res=400,units='mm')
 print(fig4)
 dev.off()
 
-png("plots/frontiers.png",height=80,width=170,res=400,units='mm')
+png("plots/expend_fronts.png",height=70,width=170,res=400,units='mm')
 print(fig5)
 dev.off()
 
-png("plots/bio_tradeoff.png",height=80,width=85,res=400,units='mm')
+png("plots/bio_tradeoff.png",height=95,width=85,res=400,units='mm')
 print(fig6)
 dev.off()
 
-png("plots/approx_params_wide.png",height=80,width=170,res=400,units='mm')
-print(fig7)
-dev.off()
+# png("plots/approx_params_wide.png",height=70,width=170,res=400,units='mm')
+# print(fig7)
+# dev.off()
 
 png("plots/approx_params.png",height=180,width=170,res=400,units='mm')
 print(fig8)
